@@ -1,0 +1,77 @@
+# Render deployment blueprint.
+# This deploys the engine + API as a single persistent Web Service.
+# A Web Service (not a serverless function) stays running between requests,
+# which is required for the asyncio trading loop in app/engine.py to work.
+#
+# Deploy: push this repo to GitHub, then in Render dashboard choose
+# "New +" -> "Blueprint" and point it at the repo. Render reads this file.
+#
+# Alternative topology: if you'd rather isolate the trading loop from the
+# public API, deploy app/engine.py's TradingEngine under a Background Worker
+# (no HTTP) and run api.py as a separate Web Service reading from a shared
+# Postgres/Redis instead of in-memory state. The single-service setup below
+# is simpler and sufficient for one engine instance; split it out once you
+# need to scale the API independently of the trading loop.
+
+services:
+  - type: web
+    name: nexus7-trading-engine
+    env: python
+    plan: starter
+    region: oregon
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    disk:
+      name: nexus7-data
+      mountPath: /opt/render/project/src/data
+      sizeGB: 1
+    envVars:
+      - key: BINANCE_API_KEY
+        sync: false
+      - key: BINANCE_API_SECRET
+        sync: false
+      - key: BINANCE_TESTNET
+        value: "true"
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: "gemini-2.0-flash"
+      - key: TRADING_PAIRS
+        value: "BTC/USDT,ETH/USDT"
+      - key: TIMEFRAME
+        value: "15m"
+      - key: OHLCV_LOOKBACK
+        value: "200"
+      - key: POLL_INTERVAL_SECONDS
+        value: "60"
+      - key: MIN_CONFIDENCE_SCORE
+        value: "85"
+      - key: REQUIRE_TECHNICAL_CONFIRMATION
+        value: "true"
+      - key: RISK_PER_TRADE_PCT
+        value: "0.5"
+      - key: MAX_POSITION_PCT
+        value: "10"
+      - key: MAX_OPEN_POSITIONS
+        value: "3"
+      - key: MAX_DAILY_LOSS_PCT
+        value: "3"
+      - key: ATR_PERIOD
+        value: "14"
+      - key: ATR_SL_MULTIPLIER
+        value: "1.5"
+      - key: ATR_TP_MULTIPLIER
+        value: "3.0"
+      - key: TRADING_ENABLED
+        value: "true"
+      - key: DRY_RUN
+        value: "false"
+      - key: API_AUTH_TOKEN
+        sync: false
+      - key: ALLOWED_ORIGINS
+        value: "https://your-frontend.vercel.app"
+      - key: DATABASE_PATH
+        value: "/opt/render/project/src/data/engine.db"
+      - key: LOG_LEVEL
+        value: "INFO"
