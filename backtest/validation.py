@@ -361,49 +361,49 @@ def evaluate_monte_carlo(trades: list[SimTrade], initial_equity: float = 10000.0
             "worst_losing_streak": 0,
         }
 
-    pnls = [t.pnl_usd for t in trades]
+    pnls = np.array([t.pnl_usd for t in trades if t.pnl_usd is not None])
     n_trades = len(pnls)
-
-    final_equities = []
-    max_dds = []
-    losing_streaks = []
+    if n_trades == 0:
+        return {
+            "simulations": num_simulations,
+            "prob_loss_pct": 100.0,
+            "expected_max_dd_pct": 0.0,
+            "dd_95th_pct": 0.0,
+            "worst_losing_streak": 0,
+        }
 
     rng = np.random.default_rng(seed=42)
+    # Generate 2D resampled PnL matrix: shape (num_simulations, n_trades)
+    matrix = rng.choice(pnls, size=(num_simulations, n_trades), replace=True)
+    noise = rng.uniform(0.95, 1.05, size=(num_simulations, n_trades))
+    adj_matrix = matrix * noise
 
-    for _ in range(num_simulations):
-        # Bootstrap resample with replacement
-        resampled_pnls = rng.choice(pnls, size=n_trades, replace=True)
-        # Apply random fee/slippage noise (+-10%)
-        noise = rng.uniform(0.95, 1.05, size=n_trades)
-        adjusted_pnls = resampled_pnls * noise
+    # Equity curves across all simulations: shape (num_simulations, n_trades + 1)
+    eq_curves = initial_equity + np.hstack([np.zeros((num_simulations, 1)), np.cumsum(adj_matrix, axis=1)])
+    final_equities = eq_curves[:, -1]
 
-        eq = initial_equity
-        peak = initial_equity
-        max_dd = 0.0
+    # Calculate running max peak and drawdown matrix
+    peaks = np.maximum.accumulate(eq_curves, axis=1)
+    drawdowns = np.where(peaks > 0, (peaks - eq_curves) / peaks * 100, 0.0)
+    max_dds = np.max(drawdowns, axis=1)
+
+    # Calculate max losing streak across simulations
+    is_loss = adj_matrix <= 0
+    worst_losing_streak = 0
+    for row in is_loss:
         consec = 0
-        max_consec = 0
-
-        for pnl in adjusted_pnls:
-            eq += pnl
-            peak = max(peak, eq)
-            dd = ((peak - eq) / peak * 100) if peak > 0 else 0.0
-            max_dd = max(max_dd, dd)
-
-            if pnl <= 0:
+        m_consec = 0
+        for val in row:
+            if val:
                 consec += 1
-                max_consec = max(max_consec, consec)
+                m_consec = max(m_consec, consec)
             else:
                 consec = 0
+        worst_losing_streak = max(worst_losing_streak, m_consec)
 
-        final_equities.append(eq)
-        max_dds.append(max_dd)
-        losing_streaks.append(max_consec)
-
-    loss_count = sum(1 for e in final_equities if e < initial_equity)
-    prob_loss = (loss_count / num_simulations) * 100
+    prob_loss = float(np.sum(final_equities < initial_equity) / num_simulations * 100)
     expected_max_dd = float(np.mean(max_dds))
     dd_95th = float(np.percentile(max_dds, 95))
-    worst_losing_streak = int(np.max(losing_streaks))
 
     return {
         "simulations": num_simulations,
