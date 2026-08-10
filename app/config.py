@@ -99,13 +99,30 @@ class Settings:
     dry_run: bool = field(default_factory=lambda: _bool("DRY_RUN", False))
 
     # --- API / infra ---
-    api_auth_token: str = field(default_factory=lambda: os.getenv("API_AUTH_TOKEN", ""))
+    api_auth_token: str = field(
+        default_factory=lambda: os.getenv("ENGINE_TOKEN") or os.getenv("API_AUTH_TOKEN", "")
+    )
     allowed_origins: list[str] = field(
-        default_factory=lambda: _list("ALLOWED_ORIGINS", ["http://localhost:3000"])
+        default_factory=lambda: _list(
+            "ALLOWED_ORIGINS",
+            [
+                "https://nexus-7-weex-terminal.vercel.app",
+                "http://localhost:3000",
+                "http://localhost:5173",
+            ],
+        )
     )
     database_path: str = field(default_factory=lambda: os.getenv("DATABASE_PATH", "./data/engine.db"))
     log_level: str = field(default_factory=lambda: os.getenv("LOG_LEVEL", "INFO"))
     port: int = field(default_factory=lambda: _int("PORT", 10000))
+
+    @property
+    def ENGINE_TOKEN(self) -> str:
+        return self.api_auth_token
+
+    @property
+    def ALLOWED_ORIGINS(self) -> list[str]:
+        return self.allowed_origins
 
     def validate(self) -> list[str]:
         """Returns a list of human-readable problems. Empty list = OK to start."""

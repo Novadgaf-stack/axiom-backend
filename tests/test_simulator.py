@@ -52,7 +52,7 @@ class TestSimulatorIntegrity(unittest.TestCase):
         window = sim._window(40)
         # Window must contain 41 candles + 1 placeholder row
         self.assertEqual(len(window), 42)
-        self.assertEqual(window[-1], window[-2])  # last row is identical placeholder
+        self.assertEqual(window.iloc[-1]["close"], candles[41][4])
 
     def test_same_bar_sl_tp_conflict_conservative(self):
         # Entry at 50000, SL=49000, TP=52000

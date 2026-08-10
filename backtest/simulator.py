@@ -16,6 +16,7 @@ you cannot actually trade at the price the signal was generated from.
 """
 import asyncio
 from datetime import datetime, timezone
+import pandas as pd
 
 from app.indicators import compute_snapshot
 from app.risk import RiskManager, TradePlan
@@ -52,8 +53,14 @@ class BacktestSimulator:
         self.slippage_pct = slippage_pct
         self.max_hold_bars = max_hold_bars
         self.same_bar_conflict = same_bar_conflict
-        import pandas as pd
+        from app.indicators import compute_all_snapshots
         self.df_candles = pd.DataFrame(candles, columns=["ts", "open", "high", "low", "close", "volume"])
+        self.snapshots = compute_all_snapshots(
+            self.df_candles,
+            atr_period=self.settings.atr_period,
+            min_volume_ratio=self.settings.min_volume_ratio,
+            min_adx=getattr(self.settings, "min_adx", 20.0),
+        )
         self.min_lookback = max(30, self.settings.atr_period + 5) + 1
 
     def _window(self, i: int):
@@ -71,13 +78,7 @@ class BacktestSimulator:
             candle = self.candles[i]
             now = _ms_to_dt(candle[0])
 
-            window = self._window(i)
-            snapshot = compute_snapshot(
-                window,
-                atr_period=self.settings.atr_period,
-                min_volume_ratio=self.settings.min_volume_ratio,
-                min_adx=getattr(self.settings, "min_adx", 20.0),
-            )
+            snapshot = self.snapshots[i] if i < len(self.snapshots) else None
             if snapshot is None:
                 i += 1
                 continue
@@ -90,7 +91,7 @@ class BacktestSimulator:
                 continue
 
             order_book = synthetic_order_book_summary(candle)
-            decision = await self.strategy.evaluate(self.symbol, window, order_book)
+            decision = await self.strategy.evaluate(self.symbol, snapshot, order_book)
 
             if not decision.is_actionable or decision.action != "LONG":
                 # Spot-only, matching production: SHORT signals aren't traded.

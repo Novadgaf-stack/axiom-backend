@@ -1,5 +1,7 @@
+import secrets
 from dataclasses import asdict
 from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from app.config import settings
 from app.state import state
@@ -7,6 +9,7 @@ from app.db import db
 from app import engine_registry
 
 router = APIRouter()
+security = HTTPBearer(auto_error=False)
 
 
 def require_engine():
@@ -15,15 +18,25 @@ def require_engine():
     return engine_registry.engine
 
 
-def require_auth(authorization: str = Header(default="")):
-    if not settings.api_auth_token:
+def require_auth(
+    authorization: str = Header(default=""),
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+):
+    token_configured = settings.ENGINE_TOKEN or settings.api_auth_token
+    if not token_configured:
         # Fail closed: if no token is configured, control/monitoring endpoints
         # are unavailable rather than silently open.
-        raise HTTPException(status_code=503, detail="API_AUTH_TOKEN not configured on server.")
-    expected = f"Bearer {settings.api_auth_token}"
-    if authorization != expected:
-        raise HTTPException(status_code=401, detail="Invalid or missing bearer token.")
-    return True
+        raise HTTPException(status_code=503, detail="ENGINE_TOKEN / API_AUTH_TOKEN not configured on server.")
+    
+    token = ""
+    if credentials and credentials.credentials:
+        token = credentials.credentials
+    elif authorization:
+        token = authorization.replace("Bearer ", "").strip()
+    
+    if token and secrets.compare_digest(token, token_configured):
+        return True
+    raise HTTPException(status_code=401, detail="Invalid or missing bearer token.")
 
 
 @router.get("/health")

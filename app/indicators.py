@@ -22,6 +22,7 @@ class TechnicalSnapshot:
     volume_ratio: float  # last volume / avg volume
     adx: float
     bias: str  # "LONG", "SHORT", "NEUTRAL"
+    ts: int = 0
 
     def to_prompt_dict(self) -> dict:
         return {
@@ -152,6 +153,7 @@ def compute_snapshot(
     elif bearish:
         bias = "SHORT"
 
+    last_ts = int(df["ts"].iloc[-1]) if "ts" in df.columns else 0
     return TechnicalSnapshot(
         close=last_close,
         ema_fast=last_ema_fast,
@@ -164,4 +166,88 @@ def compute_snapshot(
         volume_ratio=volume_ratio,
         adx=last_adx,
         bias=bias,
+        ts=last_ts,
     )
+
+
+def compute_all_snapshots(
+    df: pd.DataFrame, atr_period: int = 14, min_volume_ratio: float = 0.0, min_adx: float = 20.0
+) -> list[TechnicalSnapshot | None]:
+    if len(df) == 0:
+        return []
+
+    ema_fast = _ema(df["close"], 9)
+    ema_slow = _ema(df["close"], 21)
+    ema_50 = _ema(df["close"], 50)
+    rsi = _rsi(df["close"], 14)
+    atr = _atr(df, atr_period)
+    adx_series = _adx(df, 14)
+    macd_line = ema_fast - ema_slow
+    macd_signal = _ema(macd_line, 9)
+    vol_roll = df["volume"].rolling(20).mean().replace(0, 1e-9)
+    volume_ratio = df["volume"] / vol_roll
+
+    min_lookback = max(55, atr_period + 5)
+    snapshots: list[TechnicalSnapshot | None] = [None] * len(df)
+
+    closes = df["close"].values
+    ef = ema_fast.values
+    es = ema_slow.values
+    e50 = ema_50.values
+    r = rsi.values
+    a = atr.values
+    adx_v = adx_series.values
+    m = macd_line.values
+    ms = macd_signal.values
+    vr = volume_ratio.values
+    ts_v = df["ts"].values if "ts" in df.columns else np.zeros(len(df), dtype=int)
+
+    for i in range(min_lookback, len(df)):
+        last_close = float(closes[i])
+        last_ef = float(ef[i])
+        last_es = float(es[i])
+        last_e50 = float(e50[i])
+        last_rsi = float(r[i])
+        last_atr = float(a[i]) if not np.isnan(a[i]) else 0.0
+        last_adx = float(adx_v[i]) if not np.isnan(adx_v[i]) else 0.0
+        last_macd = float(m[i])
+        last_macd_signal = float(ms[i])
+        last_vr = float(vr[i]) if not np.isnan(vr[i]) else 0.0
+        last_ts = int(ts_v[i])
+
+        volume_ok = last_vr >= min_volume_ratio
+        adx_ok = last_adx >= min_adx
+        bullish = (
+            last_ef > last_es
+            and last_close > last_e50
+            and last_macd > last_macd_signal
+            and 45 <= last_rsi <= 68
+            and volume_ok
+            and adx_ok
+        )
+        bearish = (
+            last_ef < last_es
+            and last_close < last_e50
+            and last_macd < last_macd_signal
+            and 32 <= last_rsi <= 55
+            and volume_ok
+            and adx_ok
+        )
+        bias = "LONG" if bullish else ("SHORT" if bearish else "NEUTRAL")
+
+        snapshots[i] = TechnicalSnapshot(
+            close=last_close,
+            ema_fast=last_ef,
+            ema_slow=last_es,
+            ema_50=last_e50,
+            rsi=last_rsi,
+            atr=last_atr,
+            macd=last_macd,
+            macd_signal=last_macd_signal,
+            volume_ratio=last_vr,
+            adx=last_adx,
+            bias=bias,
+            ts=last_ts,
+        )
+
+    return snapshots

@@ -59,12 +59,15 @@ class StrategyEngine:
     def __init__(self, analyst: AIAnalyst):
         self.analyst = analyst
 
-    async def evaluate(self, symbol: str, ohlcv: list, order_book: dict) -> Decision:
+    async def evaluate(self, symbol: str, ohlcv, order_book: dict) -> Decision:
         min_adx = getattr(settings, "min_adx", 20.0)
         min_vol = getattr(settings, "min_volume_ratio", 0.7)
-        technical = compute_snapshot(
-            ohlcv, atr_period=settings.atr_period, min_volume_ratio=min_vol, min_adx=min_adx
-        )
+        if isinstance(ohlcv, TechnicalSnapshot):
+            technical = ohlcv
+        else:
+            technical = compute_snapshot(
+                ohlcv, atr_period=settings.atr_period, min_volume_ratio=min_vol, min_adx=min_adx
+            )
         if technical is None:
             return Decision(symbol, "HOLD", None, None, reject_reason="insufficient_candle_history")
 
@@ -74,7 +77,12 @@ class StrategyEngine:
 
         if getattr(settings, "enable_session_filter", False):
             # Check UTC timestamp of last closed candle
-            last_closed_ts = ohlcv[-2][0] if len(ohlcv) >= 2 else 0
+            if isinstance(ohlcv, TechnicalSnapshot):
+                last_closed_ts = getattr(technical, "ts", 0)
+            elif isinstance(ohlcv, list) and len(ohlcv) >= 2:
+                last_closed_ts = ohlcv[-2][0]
+            else:
+                last_closed_ts = 0
             from datetime import datetime, timezone
             dt = datetime.fromtimestamp(last_closed_ts / 1000, tz=timezone.utc)
             start_h = getattr(settings, "session_start_hour", 12)
