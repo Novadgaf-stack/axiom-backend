@@ -22,6 +22,18 @@ class TradePlan:
     take_profit: float
     notional_usd: float
     risk_usd: float
+    tp1_price: float = 0.0
+    tp2_price: float = 0.0
+    tranche1_qty: float = 0.0
+    tranche2_qty: float = 0.0
+
+    @property
+    def tp1(self) -> float:
+        return self.tp1_price
+
+    @property
+    def tp2(self) -> float:
+        return self.tp2_price
 
 
 class RiskManager:
@@ -102,6 +114,7 @@ class RiskManager:
         atr: float,
         available_equity_usd: float,
         open_position_count: int,
+        confidence_score: int | None = None,
     ) -> TradePlan | None:
         if open_position_count >= settings.max_open_positions:
             logger.info(f"[{symbol}] Rejected: max open positions ({settings.max_open_positions}) reached.")
@@ -114,20 +127,35 @@ class RiskManager:
         stop_distance = atr * settings.atr_sl_multiplier
         take_profit_distance = atr * settings.atr_tp_multiplier
 
+        t1_mult = getattr(settings, "t1_tp_multiplier", 1.0)
+        t2_mult = getattr(settings, "t2_tp_multiplier", 2.5)
+
         if side == "buy":
             stop_loss = entry_price - stop_distance
             take_profit = entry_price + take_profit_distance
+            tp1_price = entry_price + (atr * t1_mult)
+            tp2_price = entry_price + (atr * t2_mult)
         else:
             stop_loss = entry_price + stop_distance
             take_profit = entry_price - take_profit_distance
+            tp1_price = entry_price - (atr * t1_mult)
+            tp2_price = entry_price - (atr * t2_mult)
 
         if stop_loss <= 0:
             logger.info(f"[{symbol}] Rejected: computed stop-loss <= 0.")
             return None
 
-        # Position sizing: risk a fixed % of equity, sized so that hitting the
-        # stop-loss loses exactly that amount (not more).
-        risk_usd = available_equity_usd * (settings.risk_per_trade_pct / 100)
+        # Position sizing: dynamic confidence-weighted risk % or baseline settings.risk_per_trade_pct
+        risk_pct = settings.risk_per_trade_pct
+        if getattr(settings, "confidence_scaling_enabled", True) and confidence_score is not None:
+            if confidence_score >= 96:
+                risk_pct = 2.0
+            elif confidence_score >= 90:
+                risk_pct = 1.5
+            elif confidence_score >= 85:
+                risk_pct = 1.0
+
+        risk_usd = available_equity_usd * (risk_pct / 100)
         quantity = risk_usd / stop_distance
 
         # Hard cap: notional exposure can't exceed max_position_pct of equity,
@@ -144,6 +172,9 @@ class RiskManager:
             logger.info(f"[{symbol}] Rejected: computed notional ${notional:.2f} is below practical minimum.")
             return None
 
+        tranche1_qty = quantity * 0.5
+        tranche2_qty = quantity - tranche1_qty
+
         return TradePlan(
             symbol=symbol,
             side=side,
@@ -153,4 +184,8 @@ class RiskManager:
             take_profit=take_profit,
             notional_usd=notional,
             risk_usd=risk_usd,
+            tp1_price=tp1_price,
+            tp2_price=tp2_price,
+            tranche1_qty=tranche1_qty,
+            tranche2_qty=tranche2_qty,
         )

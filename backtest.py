@@ -46,8 +46,11 @@ def build_settings(args) -> Settings:
         ("min_confidence", "min_confidence_score"),
         ("atr_sl", "atr_sl_multiplier"),
         ("atr_tp", "atr_tp_multiplier"),
+        ("t1_tp", "t1_tp_multiplier"),
+        ("t2_tp", "t2_tp_multiplier"),
         ("atr_period", "atr_period"),
         ("min_volume_ratio", "min_volume_ratio"),
+        ("min_adx", "min_adx"),
         ("cooldown_minutes", "cooldown_minutes_after_loss"),
         ("max_daily_loss_pct", "max_daily_loss_pct"),
         ("risk_per_trade_pct", "risk_per_trade_pct"),
@@ -57,8 +60,15 @@ def build_settings(args) -> Settings:
         val = getattr(args, cli_name, None)
         if val is not None:
             overrides[field_name] = val
-    if args.no_technical_confirmation:
+    if getattr(args, "no_technical_confirmation", False):
         overrides["require_technical_confirmation"] = False
+    if getattr(args, "enable_session_filter", False):
+        overrides["enable_session_filter"] = True
+    if getattr(args, "disable_confidence_scaling", False):
+        overrides["confidence_scaling_enabled"] = False
+    if getattr(args, "disable_multi_stage_exits", False):
+        overrides["enable_multi_stage_exits"] = False
+
     return dataclasses.replace(base, **overrides) if overrides else base
 
 
@@ -71,10 +81,13 @@ def apply_settings_override(settings_obj: Settings):
     every settings.* lookup those modules make, without touching the
     production files or requiring a .env file to exist.
     """
+    import logging
     import app.risk as risk_mod
     import app.strategy as strategy_mod
     risk_mod.settings = settings_obj
     strategy_mod.settings = settings_obj
+    risk_mod.logger.setLevel(logging.ERROR)
+    strategy_mod.logger.setLevel(logging.ERROR)
 
 
 def load_candles(args) -> list:
@@ -179,27 +192,24 @@ def save_outputs(report, out_dir: str, mode: str):
 
 
 def print_comparison(reports: dict):
-    cols = ["mode", "trades", "win_rate%", "profit_factor", "expectancy($)", "expectancy(R)", "max_dd%", "net_pnl%"]
-    print("\n" + "=" * 90)
-    print("COMPARATIVE SUMMARY")
-    print("=" * 90)
-    header = "{:<16}{:>9}{:>11}{:>15}{:>15}{:>15}{:>10}{:>12}".format(*cols)
+    cols = ["mode", "trades (W/L)", "win_rate%", "profit_factor", "sharpe", "expectancy($)", "expectancy(R)", "max_dd%", "net_pnl%"]
+    print("\n" + "=" * 110)
+    print("INSTITUTIONAL COMPARATIVE SUMMARY")
+    print("=" * 110)
+    header = "{:<16}{:>14}{:>11}{:>15}{:>10}{:>15}{:>15}{:>10}{:>12}".format(*cols)
     print(header)
     for mode, r in reports.items():
-        print("{:<16}{:>9}{:>11.2f}{:>15.2f}{:>15.2f}{:>15.2f}{:>10.2f}{:>12.2f}".format(
-            mode, r.total_trades, r.win_rate_pct, r.profit_factor,
+        trade_str = f"{r.total_trades} ({r.winning_trades}W/{r.losing_trades}L)"
+        print("{:<16}{:>14}{:>11.2f}{:>15.2f}{:>10.2f}{:>15.2f}{:>15.2f}{:>10.2f}{:>12.2f}".format(
+            mode, trade_str, r.win_rate_pct, r.profit_factor, r.sharpe_ratio,
             r.expectancy_usd, r.expectancy_r, r.max_drawdown_pct, r.net_pnl_pct,
         ))
-    print("=" * 90)
+    print("=" * 110)
     print(
-        "Read this comparison as: does adding the AI confidence gate (ai_mirror) actually\n"
-        "improve on trading every technical signal (technical_only)? If ai_mirror doesn't\n"
-        "beat technical_only by a meaningful margin — and beat ai_random by more than\n"
-        "ai_mirror beats technical_only — that's evidence the AI layer isn't adding real\n"
-        "filtering value, only extra latency and API cost. Remember: 'ai_mirror' is a\n"
-        "heuristic stand-in, not a real Gemini forecast — this compares FILTERING BEHAVIOR,\n"
-        "not Gemini's actual predictive power, which can only be validated with ai_live\n"
-        "or, better, forward paper-trading."
+        "ROBUSTNESS DISCIPLINE REMINDER:\n"
+        "• Evaluate sample size (W/L trades count) — single-digit trade counts have high sampling error.\n"
+        "• Compare ai_mirror (heuristic AI filter) against technical_only (baseline) and ai_random (null control).\n"
+        "• Always validate parameter choices with an Out-of-Sample (OOS) locked walk-forward period."
     )
 
 
@@ -215,6 +225,7 @@ def main():
 
     parser.add_argument("--mode", choices=["technical_only", "ai_mirror", "ai_random", "ai_live"], default="ai_mirror")
     parser.add_argument("--compare", action="store_true", help="Run technical_only + ai_mirror + ai_random and print a side-by-side comparison.")
+    parser.add_argument("--validate", action="store_true", help="Run full institutional validation suite (IS/OOS, Walk-Forward, Regimes, Sensitivity, AI Edge, Monte Carlo) and generate NEXUS-7 STRATEGY VALIDATION REPORT.")
 
     parser.add_argument("--initial-equity", type=float, default=10_000.0)
     parser.add_argument("--fee-pct", type=float, default=0.1, help="Per-side fee, e.g. 0.1 for Binance spot taker.")
@@ -226,8 +237,14 @@ def main():
     parser.add_argument("--min-confidence", type=int, default=None)
     parser.add_argument("--atr-sl", type=float, default=None)
     parser.add_argument("--atr-tp", type=float, default=None)
+    parser.add_argument("--t1-tp", type=float, default=None, help="ATR multiplier for Tranche 1 scale-out (default 1.0)")
+    parser.add_argument("--t2-tp", type=float, default=None, help="ATR multiplier for Tranche 2 final target (default 2.5)")
     parser.add_argument("--atr-period", type=int, default=None)
     parser.add_argument("--min-volume-ratio", type=float, default=None)
+    parser.add_argument("--min-adx", type=float, default=None, help="Minimum ADX threshold for trend strength filter (default 20.0)")
+    parser.add_argument("--enable-session-filter", action="store_true", help="Restrict trade generation to 12:00-20:00 UTC liquidity window")
+    parser.add_argument("--disable-confidence-scaling", action="store_true", help="Disable dynamic confidence-weighted position sizing")
+    parser.add_argument("--disable-multi-stage-exits", action="store_true", help="Disable multi-stage exits (use single TP target instead)")
     parser.add_argument("--cooldown-minutes", type=int, default=None)
     parser.add_argument("--max-daily-loss-pct", type=float, default=None)
     parser.add_argument("--risk-per-trade-pct", type=float, default=None)
@@ -253,6 +270,29 @@ def main():
     if len(candles) < 200:
         print("WARNING: fewer than 200 candles — results will not be statistically meaningful.")
 
+    if args.validate:
+        from backtest.validation import run_full_validation_suite
+        print("\n" + "=" * 80)
+        print("RUNNING INSTITUTIONAL STRATEGY VALIDATION SUITE...")
+        print("=" * 80)
+        report_md = run_full_validation_suite(candles, args.symbol, settings_obj)
+
+        os.makedirs(args.out_dir, exist_ok=True)
+        val_report_path = os.path.join(args.out_dir, "validation_report.md")
+        with open(val_report_path, "w", encoding="utf-8") as f:
+            f.write(report_md)
+
+        # Write to artifact dir as well
+        artifact_dir = r"C:\Users\Administrator\.gemini\antigravity\brain\24820acc-97ef-4e5f-a49f-ed575fad8dcf"
+        if os.path.exists(artifact_dir):
+            art_val_path = os.path.join(artifact_dir, "validation_report.md")
+            with open(art_val_path, "w", encoding="utf-8") as f:
+                f.write(report_md)
+
+        print(report_md)
+        print(f"\nSaved Validation Report to: {val_report_path}")
+        return
+
     modes_to_run = ["technical_only", "ai_mirror", "ai_random"] if args.compare else [args.mode]
 
     reports = {}
@@ -271,3 +311,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

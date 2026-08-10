@@ -13,7 +13,7 @@ import asyncio
 from datetime import datetime, timezone
 
 from app.config import settings
-from app.exchange import BinanceExchange, OrderRejected
+from app.exchange import DataExchange, ExecutionExchange, OrderRejected
 from app.ai_analyst import AIAnalyst
 from app.strategy import StrategyEngine, Decision
 from app.risk import RiskManager
@@ -26,7 +26,8 @@ logger = get_logger("engine")
 
 class TradingEngine:
     def __init__(self):
-        self.exchange = BinanceExchange()
+        self.data_exchange = DataExchange()
+        self.execution_exchange = ExecutionExchange()
         self.analyst = AIAnalyst()
         self.strategy = StrategyEngine(self.analyst)
         self.risk = RiskManager()
@@ -51,9 +52,15 @@ class TradingEngine:
         logger.critical(f"ENGINE HALTED: {reason}")
 
     async def _get_usdt_equity(self) -> float:
-        balance = await self.exchange.fetch_balance()
-        total = balance.get("total", {})
-        return float(total.get("USDT", 0.0))
+        try:
+            balance = await self.execution_exchange.fetch_balance()
+            total = balance.get("total", {})
+            return float(total.get("USDT", 0.0))
+        except Exception as e:
+            if settings.dry_run or not settings.trading_enabled:
+                logger.warning(f"Could not fetch Binance balance ({e}), using fallback 10,000 USDT for dry_run/monitoring.")
+                return 10000.0
+            raise
 
     async def _bootstrap_daily_risk_state(self):
         """Restore the daily-loss circuit breaker's state from the DB so a
@@ -69,7 +76,7 @@ class TradingEngine:
             logger.warning(f"Could not restore daily risk state from DB, starting fresh: {e}")
 
     async def _process_symbol(self, symbol: str, equity: float):
-        ohlcv = await self.exchange.fetch_ohlcv(symbol, settings.timeframe, settings.ohlcv_lookback)
+        ohlcv = await self.data_exchange.fetch_ohlcv(symbol, settings.timeframe, settings.ohlcv_lookback)
 
         # Only re-evaluate once per newly-closed candle. Polling faster than
         # the timeframe (e.g. 60s polls on a 15m chart) would otherwise call
@@ -85,7 +92,7 @@ class TradingEngine:
             return
         self._last_evaluated_candle_ts[symbol] = last_closed_ts
 
-        order_book = await self.exchange.fetch_order_book(symbol)
+        order_book = await self.data_exchange.fetch_order_book(symbol)
 
         decision: Decision = await self.strategy.evaluate(symbol, ohlcv, order_book)
 
@@ -126,7 +133,7 @@ class TradingEngine:
         # indicators.py). Also acts as a sanity check: if live price has
         # gapped hard away from the candle the signal was computed on, the
         # signal is stale and we skip rather than trade on outdated context.
-        ticker = await self.exchange.fetch_ticker(symbol)
+        ticker = await self.data_exchange.fetch_ticker(symbol)
         live_price = float(ticker["last"])
         staleness_pct = abs(live_price - decision.technical.close) / decision.technical.close * 100
         if staleness_pct > settings.max_price_staleness_pct:
@@ -141,6 +148,7 @@ class TradingEngine:
             atr=decision.technical.atr,
             available_equity_usd=equity,
             open_position_count=len(state.open_positions),
+            confidence_score=ai_conf,
         )
         if plan is None:
             await db.log_decision(symbol, technical_bias, ai_action, ai_conf, ai_reasoning, executed=False, reject_reason="risk_check_failed")
@@ -154,8 +162,8 @@ class TradingEngine:
         await self._execute_long(symbol, plan, live_price, technical_bias, ai_action, ai_conf, ai_reasoning)
 
     async def _execute_long(self, symbol, plan, live_price, technical_bias, ai_action, ai_conf, ai_reasoning):
-        market = await self.exchange.market_precision(symbol)
-        qty = self.exchange.amount_to_precision(symbol, plan.quantity)
+        market = await self.execution_exchange.market_precision(symbol)
+        qty = self.execution_exchange.amount_to_precision(symbol, plan.quantity)
         limits = market.get("limits", {})
         min_qty = limits.get("amount", {}).get("min")
         min_cost = limits.get("cost", {}).get("min")
@@ -171,9 +179,9 @@ class TradingEngine:
         # Marketable limit (IOC) instead of a blind market order: caps how
         # much worse than the observed price we're willing to pay, so a thin
         # order book can't slip the fill far away from what we sized for.
-        limit_price = self.exchange.price_to_precision(symbol, live_price * (1 + settings.max_slippage_pct / 100))
+        limit_price = self.execution_exchange.price_to_precision(symbol, live_price * (1 + settings.max_slippage_pct / 100))
         try:
-            order = await self.exchange.create_limit_ioc_order(symbol, "buy", qty, limit_price)
+            order = await self.execution_exchange.create_limit_ioc_order(symbol, "buy", qty, limit_price)
         except OrderRejected as e:
             logger.error(f"[{symbol}] Entry order rejected: {e}")
             await db.log_decision(symbol, technical_bias, ai_action, ai_conf, ai_reasoning, executed=False, reject_reason=f"order_rejected: {e}")
@@ -193,21 +201,21 @@ class TradingEngine:
         # risk.py calculated, not the pre-trade estimate itself.
         tp_distance = plan.take_profit - plan.entry_price_estimate
         sl_distance = plan.entry_price_estimate - plan.stop_loss
-        stop_loss = self.exchange.price_to_precision(symbol, fill_price - sl_distance)
-        take_profit = self.exchange.price_to_precision(symbol, fill_price + tp_distance)
-        stop_limit_price = self.exchange.price_to_precision(symbol, stop_loss * 0.999)
-        qty = self.exchange.amount_to_precision(symbol, filled_qty)
+        stop_loss = self.execution_exchange.price_to_precision(symbol, fill_price - sl_distance)
+        take_profit = self.execution_exchange.price_to_precision(symbol, fill_price + tp_distance)
+        stop_limit_price = self.execution_exchange.price_to_precision(symbol, stop_loss * 0.999)
+        qty = self.execution_exchange.amount_to_precision(symbol, filled_qty)
 
         protection = "none"
         bracket_order_id = None
         try:
-            bracket = await self.exchange.create_oco_sell(symbol, qty, take_profit, stop_loss, stop_limit_price)
+            bracket = await self.execution_exchange.create_oco_sell(symbol, qty, take_profit, stop_loss, stop_limit_price)
             bracket_order_id = str(bracket.get("id") or bracket.get("orderListId") or bracket.get("info", {}).get("orderListId") or "")
             protection = "oco"
         except OrderRejected as e:
             logger.error(f"[{symbol}] OCO bracket rejected ({e}). Attempting fallback stop-loss-only order.")
             try:
-                fallback = await self.exchange.create_stop_loss_only(symbol, qty, stop_loss, stop_limit_price)
+                fallback = await self.execution_exchange.create_stop_loss_only(symbol, qty, stop_loss, stop_limit_price)
                 bracket_order_id = str(fallback.get("id") or "")
                 protection = "stop_only"
                 logger.warning(f"[{symbol}] Fallback stop-loss placed (no automatic take-profit leg).")
@@ -255,7 +263,7 @@ class TradingEngine:
         for symbol, pos in list(state.open_positions.items()):
             try:
                 if pos.protection in ("oco", "stop_only") and pos.bracket_order_id:
-                    open_orders = await self.exchange.fetch_open_orders(symbol)
+                    open_orders = await self.execution_exchange.fetch_open_orders(symbol)
                     still_open = any(
                         str(o.get("id")) == pos.bracket_order_id
                         or str(o.get("orderListId", "")) == pos.bracket_order_id
@@ -276,11 +284,11 @@ class TradingEngine:
                     # fallback failed at entry). We cannot infer closure from
                     # "no open orders" here since there never was one — the
                     # engine itself must watch price and close manually.
-                    ticker = await self.exchange.fetch_ticker(symbol)
+                    ticker = await self.data_exchange.fetch_ticker(symbol)
                     last = float(ticker["last"])
                     if last <= pos.stop_loss or last >= pos.take_profit:
                         try:
-                            order = await self.exchange.create_market_order(symbol, "sell", pos.quantity)
+                            order = await self.execution_exchange.create_market_order(symbol, "sell", pos.quantity)
                             exit_price = float(order.get("average") or last)
                             await self._close_position(symbol, pos, exit_price, reason="manual_watch_close")
                         except OrderRejected as e:
@@ -294,7 +302,7 @@ class TradingEngine:
         current ticker price if trade history is unavailable."""
         try:
             since_ms = None
-            trades = await self.exchange.fetch_my_trades(symbol, since=since_ms, limit=20)
+            trades = await self.execution_exchange.fetch_my_trades(symbol, since=since_ms, limit=20)
             relevant = [t for t in trades if t.get("side") == "sell"]
             if relevant:
                 relevant = relevant[-3:]  # most recent fills
@@ -304,13 +312,14 @@ class TradingEngine:
                     return total_cost / total_qty
         except Exception as e:
             logger.warning(f"[{symbol}] Could not fetch trade history for exit price, falling back to ticker: {e}")
-        ticker = await self.exchange.fetch_ticker(symbol)
+        ticker = await self.data_exchange.fetch_ticker(symbol)
         return float(ticker["last"])
 
     async def run(self):
         state.status = EngineStatus.RUNNING
         logger.info(
-            f"Engine starting. Testnet={settings.binance_testnet} DryRun={settings.dry_run} "
+            f"Engine starting. DataExchange={settings.data_exchange_id} ExecutionExchange={settings.execution_exchange_id} "
+            f"Testnet={settings.binance_testnet} DryRun={settings.dry_run} "
             f"Pairs={settings.trading_pairs} Poll={settings.poll_interval_seconds}s"
         )
         await db.init()
@@ -321,7 +330,8 @@ class TradingEngine:
         backoff = 5
         while not self._stop_event.is_set():
             try:
-                await self.exchange.load_markets()
+                await self.data_exchange.load_markets()
+                await self.execution_exchange.load_markets()
                 break
             except Exception as e:
                 logger.error(f"Startup: failed to load exchange markets ({e}). Retrying in {backoff}s.")

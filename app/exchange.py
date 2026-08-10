@@ -1,19 +1,20 @@
 """
-Binance Spot exchange wrapper built on ccxt.
+Decoupled exchange wrappers built on ccxt.
+
+Architecture:
+- DataExchange: Handles unauthenticated public market data (OHLCV, indicators, orderbook).
+  Configurable via DATA_EXCHANGE_ID (default: "bybit").
+- ExecutionExchange: Handles authenticated account operations (orders, balances, trade history).
+  Configurable via EXECUTION_EXCHANGE_ID (default: "binance"). Supports HTTP/HTTPS proxies.
 
 Design notes:
-- All network calls run through `tenacity` retry with exponential backoff,
-  targeted at the specific ccxt exceptions that represent *transient*
-  problems (network drop, rate limit, exchange temporarily unavailable).
-  Non-transient errors (bad symbol, insufficient funds, invalid order)
-  are NOT retried — they're raised immediately so the caller can react.
-- ccxt is synchronous by default; every call is offloaded to a thread via
-  asyncio.to_thread so it never blocks the event loop running the 24/7 engine.
-- Testnet vs mainnet is controlled entirely by settings.binance_testnet.
-  There is no code path here that silently trades mainnet.
+- All network calls run through `tenacity` retry with exponential backoff for transient errors.
+- Synchronous ccxt calls are offloaded to a thread via asyncio.to_thread.
+- Graceful error handling for HTTP 451 / ExchangeNotAvailable during startup load_markets().
 """
 import asyncio
 import logging
+from typing import Optional, Dict
 import ccxt
 from tenacity import (
     retry,
@@ -50,34 +51,32 @@ def _retry_decorator():
     )
 
 
-class BinanceExchange:
-    def __init__(self):
-        if not settings.binance_api_key or not settings.binance_api_secret:
-            raise RuntimeError("BINANCE_API_KEY / BINANCE_API_SECRET must be set.")
+def _build_proxies_dict() -> Optional[Dict[str, str]]:
+    proxies = {}
+    if settings.http_proxy:
+        proxies["http"] = settings.http_proxy
+    if settings.https_proxy:
+        proxies["https"] = settings.https_proxy
+    return proxies if proxies else None
 
-        self._client = ccxt.binance(
-            {
-                "apiKey": settings.binance_api_key,
-                "secret": settings.binance_api_secret,
-                "enableRateLimit": True,
-                "options": {"defaultType": "spot"},
-            }
-        )
-        if settings.binance_testnet:
-            self._client.set_sandbox_mode(True)
-            logger.info("Binance client initialized in TESTNET (sandbox) mode.")
-        else:
-            logger.warning("Binance client initialized in MAINNET mode. Real funds at risk.")
 
+class BaseExchangeWrapper:
+    def __init__(self, exchange_id: str, config: dict):
+        self.exchange_id = exchange_id.lower()
+        if not hasattr(ccxt, self.exchange_id):
+            raise ValueError(f"Exchange '{self.exchange_id}' is not supported by ccxt.")
+
+        proxies = _build_proxies_dict()
+        if proxies:
+            config["proxies"] = proxies
+            logger.info(f"[{self.exchange_id}] Configured HTTP/HTTPS proxies.")
+
+        exchange_cls = getattr(ccxt, self.exchange_id)
+        self._client = exchange_cls(config)
         self._markets_loaded = False
 
     async def _run(self, fn, *args, **kwargs):
         return await asyncio.to_thread(fn, *args, **kwargs)
-
-    async def load_markets(self):
-        if not self._markets_loaded:
-            await self._call_with_retry(self._client.load_markets)
-            self._markets_loaded = True
 
     async def _call_with_retry(self, fn, *args, **kwargs):
         @_retry_decorator()
@@ -86,7 +85,58 @@ class BinanceExchange:
 
         return await _inner()
 
-    # ---------------- Market data ----------------
+    async def load_markets(self):
+        if not self._markets_loaded:
+            try:
+                await self._call_with_retry(self._client.load_markets)
+                self._markets_loaded = True
+                logger.info(f"[{self.exchange_id}] Markets loaded successfully.")
+            except Exception as e:
+                err_str = str(e)
+                if "451" in err_str or isinstance(e, ccxt.ExchangeNotAvailable):
+                    if not settings.http_proxy and not settings.https_proxy:
+                        logger.warning(
+                            "Execution exchange geoblocked (HTTP 451). Supply HTTP_PROXY or switch EXECUTION_EXCHANGE_ID."
+                        )
+                    else:
+                        logger.warning(
+                            f"[{self.exchange_id}] Failed to load markets due to ExchangeNotAvailable/451: {e}"
+                        )
+                else:
+                    logger.warning(f"[{self.exchange_id}] Failed to load markets: {e}")
+
+    async def market_precision(self, symbol: str):
+        await self.load_markets()
+        try:
+            return self._client.market(symbol)
+        except Exception as e:
+            logger.warning(f"[{self.exchange_id}] Could not fetch market precision for {symbol}: {e}")
+            return {}
+
+    def amount_to_precision(self, symbol: str, amount: float) -> float:
+        try:
+            return float(self._client.amount_to_precision(symbol, amount))
+        except Exception:
+            return amount
+
+    def price_to_precision(self, symbol: str, price: float) -> float:
+        try:
+            return float(self._client.price_to_precision(symbol, price))
+        except Exception:
+            return price
+
+
+class DataExchange(BaseExchangeWrapper):
+    """Exchange instance dedicated to public market data (OHLCV, orderbook, tickers)."""
+
+    def __init__(self, exchange_id: str = None):
+        eid = exchange_id or settings.data_exchange_id
+        config = {
+            "enableRateLimit": True,
+            "options": {"defaultType": "spot"},
+        }
+        super().__init__(eid, config)
+        logger.info(f"DataExchange initialized for '{self.exchange_id}'.")
 
     async def fetch_ohlcv(self, symbol: str, timeframe: str, limit: int):
         return await self._call_with_retry(self._client.fetch_ohlcv, symbol, timeframe, limit=limit)
@@ -97,21 +147,35 @@ class BinanceExchange:
     async def fetch_order_book(self, symbol: str, limit: int = 20):
         return await self._call_with_retry(self._client.fetch_order_book, symbol, limit)
 
+
+class ExecutionExchange(BaseExchangeWrapper):
+    """Exchange instance dedicated to authenticated operations (orders, balances, trade history)."""
+
+    def __init__(self, exchange_id: str = None, api_key: str = None, api_secret: str = None):
+        eid = exchange_id or settings.execution_exchange_id
+        key = api_key or settings.binance_api_key
+        secret = api_secret or settings.binance_api_secret
+
+        config = {
+            "apiKey": key,
+            "secret": secret,
+            "enableRateLimit": True,
+            "options": {"defaultType": "spot"},
+        }
+        super().__init__(eid, config)
+
+        if self.exchange_id == "binance" and settings.binance_testnet:
+            if hasattr(self._client, "set_sandbox_mode"):
+                try:
+                    self._client.set_sandbox_mode(True)
+                    logger.info("Binance execution client initialized in TESTNET (sandbox) mode.")
+                except Exception as e:
+                    logger.warning(f"Could not set sandbox mode: {e}")
+        else:
+            logger.warning(f"Execution exchange '{self.exchange_id}' initialized in MAINNET mode. Real funds at risk.")
+
     async def fetch_balance(self):
         return await self._call_with_retry(self._client.fetch_balance)
-
-    async def market_precision(self, symbol: str):
-        await self.load_markets()
-        market = self._client.market(symbol)
-        return market
-
-    def amount_to_precision(self, symbol: str, amount: float) -> float:
-        return float(self._client.amount_to_precision(symbol, amount))
-
-    def price_to_precision(self, symbol: str, price: float) -> float:
-        return float(self._client.price_to_precision(symbol, price))
-
-    # ---------------- Trading ----------------
 
     async def create_market_order(self, symbol: str, side: str, amount: float):
         """side: 'buy' or 'sell'. Raises OrderRejected on non-transient failure."""
@@ -129,19 +193,6 @@ class BinanceExchange:
             raise OrderRejected(f"Order rejected: {e}") from e
 
     async def create_oco_sell(self, symbol: str, amount: float, take_profit_price: float, stop_price: float, stop_limit_price: float):
-        """
-        Places an OCO (One-Cancels-Other) sell order — used to attach a
-        take-profit and stop-loss to a long position in a single exchange-side
-        bracket, so we don't depend on our own process staying alive to
-        protect the position.
-
-        IMPORTANT: the order *type* itself must be 'oco' — ccxt/Binance
-        dispatch OCO handling off this positional argument, not off a params
-        key. An earlier version of this method passed type='limit' with
-        {'type': 'OCO'} buried in params, which Binance would reject (or
-        worse, silently execute as an unprotected plain limit sell). Do not
-        regress this.
-        """
         try:
             return await self._call_with_retry(
                 self._client.create_order,
@@ -162,13 +213,6 @@ class BinanceExchange:
             raise OrderRejected(f"OCO bracket rejected: {e}") from e
 
     async def create_stop_loss_only(self, symbol: str, amount: float, stop_price: float, stop_limit_price: float):
-        """
-        Fallback protection when the OCO bracket itself is rejected (some
-        accounts/symbols don't support OCO, or a transient issue hits only
-        that call). This places a plain STOP_LOSS_LIMIT sell — no take-profit
-        leg, but it guarantees the exchange, not our process, enforces the
-        downside cut. Better than an unprotected position.
-        """
         try:
             return await self._call_with_retry(
                 self._client.create_order,
@@ -185,13 +229,6 @@ class BinanceExchange:
             raise OrderRejected(f"Fallback stop-loss rejected: {e}") from e
 
     async def create_limit_ioc_order(self, symbol: str, side: str, amount: float, price: float):
-        """
-        A 'marketable limit' order: priced to fill immediately like a market
-        order, but with a hard ceiling/floor on execution price so a thin
-        order book can't slip us far worse than expected. If it can't fill
-        immediately at an acceptable price, it cancels rather than chasing —
-        that's the point.
-        """
         try:
             return await self._call_with_retry(
                 self._client.create_order,
@@ -215,3 +252,7 @@ class BinanceExchange:
 
     async def fetch_open_orders(self, symbol: str = None):
         return await self._call_with_retry(self._client.fetch_open_orders, symbol)
+
+
+# Backward-compatibility alias
+BinanceExchange = ExecutionExchange

@@ -52,13 +52,15 @@ class BacktestSimulator:
         self.slippage_pct = slippage_pct
         self.max_hold_bars = max_hold_bars
         self.same_bar_conflict = same_bar_conflict
+        import pandas as pd
+        self.df_candles = pd.DataFrame(candles, columns=["ts", "open", "high", "low", "close", "volume"])
         self.min_lookback = max(30, self.settings.atr_period + 5) + 1
 
-    def _window(self, i: int) -> list:
+    def _window(self, i: int):
         """Candles known as of the close of candle i, plus a throwaway
         placeholder so compute_snapshot's drop-last-row convention lines up
         exactly with what the live engine does — see module docstring."""
-        return self.candles[: i + 1] + [self.candles[i]]
+        return self.df_candles.iloc[: i + 2]
 
     async def run(self) -> list[SimTrade]:
         trades: list[SimTrade] = []
@@ -71,7 +73,10 @@ class BacktestSimulator:
 
             window = self._window(i)
             snapshot = compute_snapshot(
-                window, atr_period=self.settings.atr_period, min_volume_ratio=self.settings.min_volume_ratio
+                window,
+                atr_period=self.settings.atr_period,
+                min_volume_ratio=self.settings.min_volume_ratio,
+                min_adx=getattr(self.settings, "min_adx", 20.0),
             )
             if snapshot is None:
                 i += 1
@@ -96,6 +101,12 @@ class BacktestSimulator:
             if entry_index >= len(self.candles):
                 break
 
+            confidence_score = (
+                decision.analyst.decision.confidence_score
+                if (decision.analyst and decision.analyst.decision)
+                else None
+            )
+
             plan = self.risk.build_trade_plan(
                 symbol=self.symbol,
                 side="buy",
@@ -103,12 +114,13 @@ class BacktestSimulator:
                 atr=snapshot.atr,
                 available_equity_usd=equity,
                 open_position_count=0,
+                confidence_score=confidence_score,
             )
             if plan is None:
                 i += 1
                 continue
 
-            trade, exit_index = self._simulate_trade(plan, entry_index)
+            trade, exit_index = self._simulate_trade(plan, entry_index, confidence_score)
             trades.append(trade)
             equity += trade.pnl_usd
             self.risk.record_realized_pnl(trade.pnl_usd)
@@ -119,7 +131,7 @@ class BacktestSimulator:
 
         return trades
 
-    def _simulate_trade(self, plan: TradePlan, entry_index: int) -> tuple[SimTrade, int]:
+    def _simulate_trade(self, plan: TradePlan, entry_index: int, confidence_score: int | None = None) -> tuple[SimTrade, int]:
         entry_price = plan.entry_price_estimate * (1 + self.slippage_pct / 100)
         entry_fee = entry_price * plan.quantity * (self.fee_pct / 100)
 
@@ -135,52 +147,148 @@ class BacktestSimulator:
         )
 
         last_scan_index = min(len(self.candles) - 1, entry_index + self.max_hold_bars)
-        exit_index = None
-        exit_price = None
-        exit_reason = None
+        use_multi_stage = bool(
+            getattr(self.settings, "enable_multi_stage_exits", True)
+            and getattr(plan, "tp1_price", 0.0) > 0
+            and getattr(plan, "tp2_price", 0.0) > 0
+        )
+
+        if not use_multi_stage:
+            exit_index = None
+            exit_price = None
+            exit_reason = None
+            for j in range(entry_index + 1, last_scan_index + 1):
+                _, o, h, l, c, v = self.candles[j]
+                hit_sl = l <= plan.stop_loss
+                hit_tp = h >= plan.take_profit
+
+                if hit_sl and hit_tp:
+                    if self.same_bar_conflict == "optimistic":
+                        exit_index, exit_price, exit_reason = j, plan.take_profit, "take_profit_same_bar_ambiguous"
+                    else:
+                        exit_index, exit_price, exit_reason = j, plan.stop_loss, "stop_loss_same_bar_ambiguous"
+                    break
+                elif hit_sl:
+                    exit_index, exit_price, exit_reason = j, plan.stop_loss, "stop_loss"
+                    break
+                elif hit_tp:
+                    exit_index, exit_price, exit_reason = j, plan.take_profit, "take_profit"
+                    break
+
+            if exit_index is None:
+                exit_index = last_scan_index
+                exit_price = self.candles[exit_index][4]
+                exit_reason = "timeout"
+
+            raw_entry = plan.entry_price_estimate
+            entry_slippage_usd = (entry_price - raw_entry) * plan.quantity
+            exit_price_net = exit_price * (1 - self.slippage_pct / 100)
+            exit_slippage = (exit_price - exit_price_net) * plan.quantity
+            exit_fee = exit_price_net * plan.quantity * (self.fee_pct / 100)
+            gross_pnl = (exit_price_net - entry_price) * plan.quantity
+            fees = entry_fee + exit_fee
+            net_pnl = gross_pnl - fees
+
+            trade.exit_index = exit_index
+            trade.exit_time_ms = self.candles[exit_index][0]
+            trade.exit_price = exit_price_net
+            trade.exit_reason = exit_reason
+            trade.fees_usd = fees
+            trade.slippage_usd = entry_slippage_usd + exit_slippage
+            trade.pnl_usd = net_pnl
+            return trade, exit_index
+
+        # Multi-stage trade simulation
+        qty1 = plan.tranche1_qty if plan.tranche1_qty > 0 else plan.quantity * 0.5
+        qty2 = plan.tranche2_qty if plan.tranche2_qty > 0 else plan.quantity * 0.5
+
+        current_sl = plan.stop_loss
+        is_t1_hit = False
+        t1_exit_price = 0.0
+        t1_exit_reason = ""
+        t1_exit_idx = None
+
+        t2_exit_price = 0.0
+        t2_exit_reason = ""
+        t2_exit_idx = None
 
         for j in range(entry_index + 1, last_scan_index + 1):
             _, o, h, l, c, v = self.candles[j]
-            hit_sl = l <= plan.stop_loss
-            hit_tp = h >= plan.take_profit
 
-            if hit_sl and hit_tp:
-                # Can't know intrabar path from OHLCV alone. Default is the
-                # PESSIMISTIC assumption (stop hit first) so the backtest
-                # doesn't flatter itself on ambiguous bars — flip via
-                # same_bar_conflict="optimistic" if you want the other bound.
-                if self.same_bar_conflict == "optimistic":
-                    exit_index, exit_price, exit_reason = j, plan.take_profit, "take_profit_same_bar_ambiguous"
-                else:
-                    exit_index, exit_price, exit_reason = j, plan.stop_loss, "stop_loss_same_bar_ambiguous"
-                break
-            elif hit_sl:
-                exit_index, exit_price, exit_reason = j, plan.stop_loss, "stop_loss"
-                break
-            elif hit_tp:
-                exit_index, exit_price, exit_reason = j, plan.take_profit, "take_profit"
-                break
+            if not is_t1_hit:
+                hit_sl1 = l <= current_sl
+                hit_tp1 = h >= plan.tp1_price
+                if hit_sl1:
+                    is_t1_hit = True
+                    t1_exit_price = current_sl
+                    t1_exit_reason = "stop_loss"
+                    t1_exit_idx = j
 
-        if exit_index is None:
-            exit_index = last_scan_index
-            exit_price = self.candles[exit_index][4]  # close of final scanned bar
-            exit_reason = "timeout"
+                    t2_exit_price = current_sl
+                    t2_exit_reason = "stop_loss"
+                    t2_exit_idx = j
+                    break
+                elif hit_tp1:
+                    is_t1_hit = True
+                    t1_exit_price = plan.tp1_price
+                    t1_exit_reason = "tp1_scale_out"
+                    t1_exit_idx = j
+                    current_sl = plan.entry_price_estimate  # Breakeven SL!
 
-        exit_price_with_slippage = exit_price * (1 - self.slippage_pct / 100)
-        exit_fee = exit_price_with_slippage * plan.quantity * (self.fee_pct / 100)
+            if is_t1_hit and t2_exit_idx is None and (t1_exit_idx is not None and j >= t1_exit_idx):
+                hit_sl2 = l <= current_sl
+                hit_tp2 = h >= plan.tp2_price
+                if hit_sl2:
+                    t2_exit_price = current_sl
+                    t2_exit_reason = "breakeven_stop_loss" if current_sl >= plan.entry_price_estimate else "stop_loss"
+                    t2_exit_idx = j
+                    break
+                elif hit_tp2:
+                    t2_exit_price = plan.tp2_price
+                    t2_exit_reason = "tp2_final"
+                    t2_exit_idx = j
+                    break
 
-        gross_pnl = (exit_price_with_slippage - entry_price) * plan.quantity
-        fees = entry_fee + exit_fee
-        net_pnl = gross_pnl - fees
+        if t1_exit_idx is None:
+            t1_exit_idx = last_scan_index
+            t1_exit_price = self.candles[last_scan_index][4]
+            t1_exit_reason = "timeout"
 
-        trade.exit_index = exit_index
-        trade.exit_time_ms = self.candles[exit_index][0]
-        trade.exit_price = exit_price_with_slippage
-        trade.exit_reason = exit_reason
-        trade.fees_usd = fees
-        trade.pnl_usd = net_pnl
+        if t2_exit_idx is None:
+            t2_exit_idx = last_scan_index
+            t2_exit_price = self.candles[last_scan_index][4]
+            t2_exit_reason = "timeout"
 
-        return trade, exit_index
+        final_exit_idx = max(t1_exit_idx, t2_exit_idx)
+
+        t1_net_price = t1_exit_price * (1 - self.slippage_pct / 100)
+        t1_gross = (t1_net_price - entry_price) * qty1
+        t1_fee = (entry_price * qty1 * (self.fee_pct / 100)) + (t1_net_price * qty1 * (self.fee_pct / 100))
+        t1_net = t1_gross - t1_fee
+        t1_slip = ((entry_price - plan.entry_price_estimate) + (t1_exit_price - t1_net_price)) * qty1
+
+        t2_net_price = t2_exit_price * (1 - self.slippage_pct / 100)
+        t2_gross = (t2_net_price - entry_price) * qty2
+        t2_fee = (entry_price * qty2 * (self.fee_pct / 100)) + (t2_net_price * qty2 * (self.fee_pct / 100))
+        t2_net = t2_gross - t2_fee
+        t2_slip = ((entry_price - plan.entry_price_estimate) + (t2_exit_price - t2_net_price)) * qty2
+
+        total_net_pnl = t1_net + t2_net
+        total_fees = t1_fee + t2_fee
+        total_slip = t1_slip + t2_slip
+
+        effective_exit_price = (t1_net_price * 0.5) + (t2_net_price * 0.5)
+        combined_reason = f"T1:{t1_exit_reason}|T2:{t2_exit_reason}"
+
+        trade.exit_index = final_exit_idx
+        trade.exit_time_ms = self.candles[final_exit_idx][0]
+        trade.exit_price = effective_exit_price
+        trade.exit_reason = combined_reason
+        trade.fees_usd = total_fees
+        trade.slippage_usd = total_slip
+        trade.pnl_usd = total_net_pnl
+
+        return trade, final_exit_idx
 
 
 def run_backtest_sync(*args, **kwargs) -> list[SimTrade]:

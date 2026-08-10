@@ -65,14 +65,26 @@ def fetch_binance_history(symbol: str, timeframe: str, days: int, cache_dir: str
             print(f"Loading cached history: {path}")
         return _read_csv(path)
 
-    exchange = ccxt.binance({"enableRateLimit": True})
+    try:
+        from app.config import settings
+        exchange_id = getattr(settings, "data_exchange_id", "bybit").lower()
+    except Exception:
+        exchange_id = "bybit"
+
+    if hasattr(ccxt, exchange_id):
+        exchange_cls = getattr(ccxt, exchange_id)
+    else:
+        exchange_cls = ccxt.bybit
+        exchange_id = "bybit"
+
+    exchange = exchange_cls({"enableRateLimit": True})
     timeframe_ms = exchange.parse_timeframe(timeframe) * 1000
     all_candles = []
     since = start_ms
     limit = 1000
 
     if verbose:
-        print(f"Fetching {symbol} {timeframe} from Binance, last {days} days...")
+        print(f"Fetching {symbol} {timeframe} from {exchange_id}, last {days} days...")
 
     while since < now_ms:
         batch = exchange.fetch_ohlcv(symbol, timeframe, since=since, limit=limit)

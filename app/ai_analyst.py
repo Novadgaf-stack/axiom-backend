@@ -32,24 +32,43 @@ RESPONSE_SCHEMA = {
     "properties": {
         "action": {"type": "STRING", "enum": ["LONG", "SHORT", "HOLD"]},
         "confidence_score": {"type": "INTEGER"},
+        "risk_flags": {
+            "type": "ARRAY",
+            "items": {"type": "STRING"}
+        },
         "reasoning": {"type": "STRING"},
     },
-    "required": ["action", "confidence_score", "reasoning"],
+    "required": ["action", "confidence_score", "risk_flags", "reasoning"],
 }
 
-SYSTEM_INSTRUCTION = (
-    "You are a disciplined, risk-averse crypto market analyst. You are given a "
-    "structured snapshot of technical indicators and order book state for one "
-    "trading pair. Respond ONLY with the requested JSON object — no markdown, "
-    "no prose outside the JSON. Be conservative: prefer HOLD unless the signal "
-    "is genuinely strong. confidence_score must be an integer from 0 to 100 "
-    "reflecting your genuine conviction, not a rounded default like 50 or 90."
-)
+SYSTEM_INSTRUCTION = """You are an institutional-grade quantitative risk manager. Your primary directive is capital preservation. You do not suffer from FOMO. Your default stance on any technical signal is REJECT unless there is overwhelming, multi-factor confluence. 
+
+You will be provided with a raw technical trading signal, including current price action, volume metrics, and indicator states (e.g., RSI, MACD, EMAs). 
+
+Your task is to validate or invalidate this signal by passing it through the "Antigravity" evaluation matrix.
+
+### PHASE 1: THE ANTIGRAVITY MATRIX (THINKING PROCESS)
+Before outputting your final decision, evaluate the following constraints:
+1. Trend Alignment (The Gravity Check): Is this signal fighting the macro trend? If the higher timeframe trend is counter to the signal, apply a severe penalty.
+2. Volume Validation (The Fuel Check): A breakout without volume is a trap. Is the current candle's volume significantly higher than the rolling average? If volume is flat or declining, reject the trade.
+3. Market Structure (The Trap Check): Is price trapped inside a tight range or chop zone? Do not authorize trades in low-volatility consolidation zones unless it is a confirmed breakout with momentum.
+4. Mean Reversion Risk: Is the asset overextended? If RSI is overbought (> 75 for LONG) or oversold (< 25 for SHORT) and price is far from key moving averages, reject it as a late entry.
+
+### PHASE 2: SCORING PROTOCOL
+Score the setup from 0 to 100 based on the Matrix above.
+* 0 - 65: Garbage setup. Ranging market, counter-trend, or low volume. Set action="HOLD".
+* 66 - 84: Mediocre setup. Lacks full confluence. Set action="HOLD".
+* 85 - 100: "A+" Setup. Perfect alignment of trend, momentum, and volume. Set action="LONG" or "SHORT" matching the valid signal direction.
+
+### PHASE 3: STRICT JSON OUTPUT
+Respond ONLY with a valid, parseable JSON object adhering to the schema. Do not include markdown formatting, conversational text, or explanations outside the JSON structure.
+"""
 
 
 class GeminiDecision(BaseModel):
     action: Literal["LONG", "SHORT", "HOLD"]
     confidence_score: int
+    risk_flags: list[str] = []
     reasoning: str
 
     @field_validator("confidence_score")
@@ -72,16 +91,34 @@ class AnalystResult:
 
 
 def _build_prompt(symbol: str, technical: dict, order_book_summary: dict) -> str:
+    trade_direction = technical.get("technical_bias", "UNKNOWN")
+    current_price = technical.get("close", "N/A")
+    rsi_value = technical.get("rsi_14", "N/A")
+    macd_val = technical.get("macd", "N/A")
+    vol_ratio = technical.get("volume_ratio_vs_avg", "N/A")
+    ema_50 = technical.get("ema_50", "N/A")
+    ema_200 = technical.get("ema_200", "N/A")
+
     payload = {
         "symbol": symbol,
+        "signal_direction": trade_direction,
+        "current_price": current_price,
         "technical_indicators": technical,
         "order_book_summary": order_book_summary,
     }
+
     return (
-        "Market snapshot (JSON):\n"
+        f"EVALUATE THIS SIGNAL FOR {symbol}:\n"
+        f"- Signal Direction: {trade_direction} (LONG/SHORT/NEUTRAL)\n"
+        f"- Current Price: {current_price}\n"
+        f"- 50-EMA: {ema_50}\n"
+        f"- 200-EMA (Macro Trend): {ema_200}\n"
+        f"- Volume Ratio vs Avg: {vol_ratio}\n"
+        f"- RSI (14): {rsi_value}\n"
+        f"- MACD: {macd_val}\n\n"
+        f"Detailed Technical & Order Book Snapshot (JSON):\n"
         f"{json.dumps(payload, indent=2)}\n\n"
-        "Given this data, decide: LONG, SHORT, or HOLD. "
-        "Return the JSON object described in your instructions."
+        "Pass this signal through the Antigravity Evaluation Matrix and return your JSON assessment."
     )
 
 

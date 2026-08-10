@@ -70,7 +70,16 @@ class MockAiAnalyst:
             confidence = self._rng.randint(0, 100)
             reasoning = "ai_random null-control mode: noise, no relationship to the data."
 
-        decision = GeminiDecision(action=action, confidence_score=confidence, reasoning=reasoning)
+        risk_flags = []
+        if confidence < 85:
+            risk_flags.append("Confidence below 85 threshold")
+
+        decision = GeminiDecision(
+            action=action,
+            confidence_score=confidence,
+            risk_flags=risk_flags,
+            reasoning=reasoning,
+        )
         return AnalystResult(decision=decision, raw_text="{}")
 
 

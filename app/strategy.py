@@ -60,12 +60,27 @@ class StrategyEngine:
         self.analyst = analyst
 
     async def evaluate(self, symbol: str, ohlcv: list, order_book: dict) -> Decision:
-        technical = compute_snapshot(ohlcv, atr_period=settings.atr_period)
+        min_adx = getattr(settings, "min_adx", 20.0)
+        min_vol = getattr(settings, "min_volume_ratio", 0.7)
+        technical = compute_snapshot(
+            ohlcv, atr_period=settings.atr_period, min_volume_ratio=min_vol, min_adx=min_adx
+        )
         if technical is None:
             return Decision(symbol, "HOLD", None, None, reject_reason="insufficient_candle_history")
 
         if settings.require_technical_confirmation and technical.bias == "NEUTRAL":
-            return Decision(symbol, "HOLD", technical, None, reject_reason="technical_bias_neutral")
+            reason = "adx_below_threshold" if technical.adx < min_adx else "technical_bias_neutral"
+            return Decision(symbol, "HOLD", technical, None, reject_reason=reason)
+
+        if getattr(settings, "enable_session_filter", False):
+            # Check UTC timestamp of last closed candle
+            last_closed_ts = ohlcv[-2][0] if len(ohlcv) >= 2 else 0
+            from datetime import datetime, timezone
+            dt = datetime.fromtimestamp(last_closed_ts / 1000, tz=timezone.utc)
+            start_h = getattr(settings, "session_start_hour", 12)
+            end_h = getattr(settings, "session_end_hour", 20)
+            if not (start_h <= dt.hour < end_h):
+                return Decision(symbol, "HOLD", technical, None, reject_reason="outside_session_window")
 
         ob_summary = _summarize_order_book(order_book)
         analyst_result = await self.analyst.analyze(symbol, technical.to_prompt_dict(), ob_summary)
