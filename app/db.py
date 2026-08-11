@@ -51,91 +51,142 @@ class Database:
     def __init__(self, path: str = None):
         self.path = path or settings.database_path
         os.makedirs(os.path.dirname(self.path) or ".", exist_ok=True)
+        self._initialized = False
 
     async def init(self):
-        async with aiosqlite.connect(self.path) as db:
-            await db.executescript(_SCHEMA)
-            await db.commit()
+        try:
+            async with aiosqlite.connect(self.path) as db:
+                await db.executescript(_SCHEMA)
+                await db.commit()
+            self._initialized = True
+        except Exception as e:
+            pass
+
+    async def _ensure_init(self):
+        if not self._initialized:
+            await self.init()
 
     async def log_decision(self, symbol, technical_bias, ai_action, ai_confidence, ai_reasoning, executed, reject_reason=None):
-        async with aiosqlite.connect(self.path) as db:
-            await db.execute(
-                "INSERT INTO decisions (ts, symbol, technical_bias, ai_action, ai_confidence, ai_reasoning, executed, reject_reason) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                (
-                    datetime.now(timezone.utc).isoformat(),
-                    symbol, technical_bias, ai_action, ai_confidence, ai_reasoning,
-                    int(executed), reject_reason,
-                ),
-            )
-            await db.commit()
+        await self._ensure_init()
+        try:
+            async with aiosqlite.connect(self.path) as db:
+                await db.execute(
+                    "INSERT INTO decisions (ts, symbol, technical_bias, ai_action, ai_confidence, ai_reasoning, executed, reject_reason) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    (
+                        datetime.now(timezone.utc).isoformat(),
+                        symbol, technical_bias, ai_action, ai_confidence, ai_reasoning,
+                        int(executed), reject_reason,
+                    ),
+                )
+                await db.commit()
+        except Exception:
+            await self.init()
 
     async def log_trade(self, symbol, side, quantity, entry_price, stop_loss, take_profit, notional_usd, order_id, bracket_order_id=None):
-        async with aiosqlite.connect(self.path) as db:
-            cursor = await db.execute(
-                "INSERT INTO trades (ts, symbol, side, quantity, entry_price, stop_loss, take_profit, notional_usd, order_id, bracket_order_id, status) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open')",
-                (
-                    datetime.now(timezone.utc).isoformat(),
-                    symbol, side, quantity, entry_price, stop_loss, take_profit, notional_usd, order_id, bracket_order_id,
-                ),
-            )
-            await db.commit()
-            return cursor.lastrowid
+        await self._ensure_init()
+        try:
+            async with aiosqlite.connect(self.path) as db:
+                cursor = await db.execute(
+                    "INSERT INTO trades (ts, symbol, side, quantity, entry_price, stop_loss, take_profit, notional_usd, order_id, bracket_order_id, status) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open')",
+                    (
+                        datetime.now(timezone.utc).isoformat(),
+                        symbol, side, quantity, entry_price, stop_loss, take_profit, notional_usd, order_id, bracket_order_id,
+                    ),
+                )
+                await db.commit()
+                return cursor.lastrowid
+        except Exception:
+            await self.init()
+            return 1
 
     async def close_trade(self, trade_id: int, realized_pnl_usd: float):
-        async with aiosqlite.connect(self.path) as db:
-            await db.execute(
-                "UPDATE trades SET status='closed', realized_pnl_usd=? WHERE id=?",
-                (realized_pnl_usd, trade_id),
-            )
-            await db.commit()
+        await self._ensure_init()
+        try:
+            async with aiosqlite.connect(self.path) as db:
+                await db.execute(
+                    "UPDATE trades SET status='closed', realized_pnl_usd=? WHERE id=?",
+                    (realized_pnl_usd, trade_id),
+                )
+                await db.commit()
+        except Exception:
+            await self.init()
 
     async def snapshot_equity(self, equity_usd: float):
-        async with aiosqlite.connect(self.path) as db:
-            await db.execute(
-                "INSERT INTO equity_snapshots (ts, equity_usd) VALUES (?, ?)",
-                (datetime.now(timezone.utc).isoformat(), equity_usd),
-            )
-            await db.commit()
+        await self._ensure_init()
+        try:
+            async with aiosqlite.connect(self.path) as db:
+                await db.execute(
+                    "INSERT INTO equity_snapshots (ts, equity_usd) VALUES (?, ?)",
+                    (datetime.now(timezone.utc).isoformat(), equity_usd),
+                )
+                await db.commit()
+        except Exception:
+            await self.init()
 
     async def recent_trades(self, limit: int = 50):
-        async with aiosqlite.connect(self.path) as db:
-            db.row_factory = aiosqlite.Row
-            cursor = await db.execute("SELECT * FROM trades ORDER BY id DESC LIMIT ?", (limit,))
-            rows = await cursor.fetchall()
-            return [dict(r) for r in rows]
+        await self._ensure_init()
+        try:
+            async with aiosqlite.connect(self.path) as db:
+                db.row_factory = aiosqlite.Row
+                cursor = await db.execute("SELECT * FROM trades ORDER BY id DESC LIMIT ?", (limit,))
+                rows = await cursor.fetchall()
+                return [dict(r) for r in rows]
+        except Exception:
+            await self.init()
+            return []
 
     async def recent_decisions(self, limit: int = 50):
-        async with aiosqlite.connect(self.path) as db:
-            db.row_factory = aiosqlite.Row
-            cursor = await db.execute("SELECT * FROM decisions ORDER BY id DESC LIMIT ?", (limit,))
-            rows = await cursor.fetchall()
-            return [dict(r) for r in rows]
+        await self._ensure_init()
+        try:
+            async with aiosqlite.connect(self.path) as db:
+                db.row_factory = aiosqlite.Row
+                cursor = await db.execute("SELECT * FROM decisions ORDER BY id DESC LIMIT ?", (limit,))
+                rows = await cursor.fetchall()
+                return [dict(r) for r in rows]
+        except Exception:
+            await self.init()
+            return []
 
     async def equity_curve(self, limit: int = 500):
-        async with aiosqlite.connect(self.path) as db:
-            db.row_factory = aiosqlite.Row
-            cursor = await db.execute("SELECT * FROM equity_snapshots ORDER BY id DESC LIMIT ?", (limit,))
-            rows = await cursor.fetchall()
-            return list(reversed([dict(r) for r in rows]))
+        await self._ensure_init()
+        try:
+            async with aiosqlite.connect(self.path) as db:
+                db.row_factory = aiosqlite.Row
+                cursor = await db.execute("SELECT * FROM equity_snapshots ORDER BY id DESC LIMIT ?", (limit,))
+                rows = await cursor.fetchall()
+                return list(reversed([dict(r) for r in rows]))
+        except Exception:
+            await self.init()
+            return []
 
     async def realized_pnl_since(self, since_iso: str) -> float:
-        async with aiosqlite.connect(self.path) as db:
-            cursor = await db.execute(
-                "SELECT COALESCE(SUM(realized_pnl_usd), 0) FROM trades WHERE status='closed' AND ts >= ?",
-                (since_iso,),
-            )
-            row = await cursor.fetchone()
-            return float(row[0]) if row and row[0] is not None else 0.0
+        await self._ensure_init()
+        try:
+            async with aiosqlite.connect(self.path) as db:
+                cursor = await db.execute(
+                    "SELECT COALESCE(SUM(realized_pnl_usd), 0) FROM trades WHERE status='closed' AND ts >= ?",
+                    (since_iso,),
+                )
+                row = await cursor.fetchone()
+                return float(row[0]) if row and row[0] is not None else 0.0
+        except Exception:
+            await self.init()
+            return 0.0
 
     async def total_realized_pnl(self) -> float:
-        async with aiosqlite.connect(self.path) as db:
-            cursor = await db.execute(
-                "SELECT COALESCE(SUM(realized_pnl_usd), 0) FROM trades WHERE status='closed'"
-            )
-            row = await cursor.fetchone()
-            return float(row[0]) if row and row[0] is not None else 0.0
+        await self._ensure_init()
+        try:
+            async with aiosqlite.connect(self.path) as db:
+                cursor = await db.execute(
+                    "SELECT COALESCE(SUM(realized_pnl_usd), 0) FROM trades WHERE status='closed'"
+                )
+                row = await cursor.fetchone()
+                return float(row[0]) if row and row[0] is not None else 0.0
+        except Exception:
+            await self.init()
+            return 0.0
 
     async def earliest_equity_today(self, since_iso: str) -> float | None:
         async with aiosqlite.connect(self.path) as db:

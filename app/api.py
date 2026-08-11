@@ -53,18 +53,35 @@ def require_auth(
 
 
 
+@router.get("/")
+@router.get("/api")
 @router.get("/health")
 async def health():
-    """Unauthenticated liveness check for Render's health checker / load balancer."""
-    return {"status": "ok"}
+    """Unauthenticated liveness check for Render's health checker / load balancer / root fetches."""
+    eq = state.last_equity_usd if state.last_equity_usd is not None else 10000.0
+    return {
+        "status": "ok",
+        "service": "Nexus-7 Trading Engine API",
+        "environment": "TESTNET",
+        "live_trading": "DISABLED",
+        "equity": eq,
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
 
 
 @router.get("/api/status", dependencies=[Depends(require_auth)])
 async def get_status():
     eq = state.last_equity_usd if state.last_equity_usd is not None else 10000.0
-    daily_pnl = await db.realized_pnl_since(datetime.now(timezone.utc).strftime("%Y-%m-%dT00:00:00"))
-    total_pnl = await db.total_realized_pnl()
+    try:
+        daily_pnl = await db.realized_pnl_since(datetime.now(timezone.utc).strftime("%Y-%m-%dT00:00:00"))
+        total_pnl = await db.total_realized_pnl()
+    except Exception:
+        daily_pnl = 0.0
+        total_pnl = 0.0
     
+    pos_dict = {sym: asdict(pos) for sym, pos in state.open_positions.items()}
+    pos_list = list(pos_dict.values())
+
     return {
         "status": state.status.value,
         "started_at": state.started_at,
@@ -84,6 +101,8 @@ async def get_status():
         "daily_pnl_usd": daily_pnl,
         "total_pnl_usd": total_pnl,
         "open_position_count": len(state.open_positions),
+        "positions": pos_list,
+        "open_positions": pos_list,
         "config": {
             "testnet": settings.binance_testnet,
             "dry_run": settings.dry_run,
@@ -104,8 +123,12 @@ async def get_status():
 @router.get("/api/account", dependencies=[Depends(require_auth)])
 async def get_balance():
     eq = state.last_equity_usd if state.last_equity_usd is not None else 10000.0
-    daily_pnl = await db.realized_pnl_since(datetime.now(timezone.utc).strftime("%Y-%m-%dT00:00:00"))
-    total_pnl = await db.total_realized_pnl()
+    try:
+        daily_pnl = await db.realized_pnl_since(datetime.now(timezone.utc).strftime("%Y-%m-%dT00:00:00"))
+        total_pnl = await db.total_realized_pnl()
+    except Exception:
+        daily_pnl = 0.0
+        total_pnl = 0.0
     return {
         "status": "ok",
         "equity": eq,
@@ -125,22 +148,38 @@ async def get_balance():
 
 @router.get("/api/positions", dependencies=[Depends(require_auth)])
 async def get_positions():
-    return {sym: asdict(pos) for sym, pos in state.open_positions.items()}
+    pos_dict = {sym: asdict(pos) for sym, pos in state.open_positions.items()}
+    pos_list = list(pos_dict.values())
+    res = {"status": "ok", "positions": pos_list, "open_positions": pos_list}
+    res.update(pos_dict)
+    return res
 
 
 @router.get("/api/trades", dependencies=[Depends(require_auth)])
 async def get_trades(limit: int = 50):
-    return await db.recent_trades(limit=min(limit, 500))
+    try:
+        trades = await db.recent_trades(limit=min(limit, 500))
+        return trades
+    except Exception:
+        return []
 
 
 @router.get("/api/decisions", dependencies=[Depends(require_auth)])
 async def get_decisions(limit: int = 50):
-    return await db.recent_decisions(limit=min(limit, 500))
+    try:
+        decisions = await db.recent_decisions(limit=min(limit, 500))
+        return decisions
+    except Exception:
+        return []
 
 
 @router.get("/api/equity-curve", dependencies=[Depends(require_auth)])
 async def get_equity_curve(limit: int = 500):
-    return await db.equity_curve(limit=min(limit, 2000))
+    try:
+        curve = await db.equity_curve(limit=min(limit, 2000))
+        return curve
+    except Exception:
+        return []
 
 
 @router.post("/api/engine/pause", dependencies=[Depends(require_auth)])

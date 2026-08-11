@@ -31,6 +31,12 @@ _engine: TradingEngine | None = None
 async def lifespan(app: FastAPI):
     global _engine_task, _engine
 
+    from app.db import db
+    try:
+        await db.init()
+    except Exception as e:
+        logger.warning(f"Database initialization warning: {e}")
+
     problems = settings.validate()
     if problems:
         for p in problems:
@@ -62,7 +68,7 @@ app = FastAPI(title="Nexus-7 Trading Engine", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.allowed_origins,
+    allow_origins=settings.allowed_origins if settings.allowed_origins else ["*"],
     allow_origin_regex=r".*",
     allow_credentials=True,
     allow_methods=["*"],
