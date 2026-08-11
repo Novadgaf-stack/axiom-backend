@@ -80,14 +80,14 @@ class Settings:
     risk_per_trade_pct: float = field(default_factory=lambda: _float("RISK_PER_TRADE_PCT", 0.5))  # % of equity risked per trade
     confidence_scaling_enabled: bool = field(default_factory=lambda: _bool("CONFIDENCE_SCALING_ENABLED", True))
     enable_multi_stage_exits: bool = field(default_factory=lambda: _bool("ENABLE_MULTI_STAGE_EXITS", True))
-    t1_tp_multiplier: float = field(default_factory=lambda: _float("T1_TP_MULTIPLIER", 1.0))
-    t2_tp_multiplier: float = field(default_factory=lambda: _float("T2_TP_MULTIPLIER", 2.5))
+    t1_tp_multiplier: float = field(default_factory=lambda: _float("T1_TP_MULTIPLIER", 1.5))
+    t2_tp_multiplier: float = field(default_factory=lambda: _float("T2_TP_MULTIPLIER", 3.0))
     max_position_pct: float = field(default_factory=lambda: _float("MAX_POSITION_PCT", 10.0))  # cap notional as % of equity
     max_open_positions: int = field(default_factory=lambda: _int("MAX_OPEN_POSITIONS", 3))
     max_daily_loss_pct: float = field(default_factory=lambda: _float("MAX_DAILY_LOSS_PCT", 3.0))
     atr_period: int = field(default_factory=lambda: _int("ATR_PERIOD", 14))
-    atr_sl_multiplier: float = field(default_factory=lambda: _float("ATR_SL_MULTIPLIER", 1.5))
-    atr_tp_multiplier: float = field(default_factory=lambda: _float("ATR_TP_MULTIPLIER", 2.5))
+    atr_sl_multiplier: float = field(default_factory=lambda: _float("ATR_SL_MULTIPLIER", 1.2))
+    atr_tp_multiplier: float = field(default_factory=lambda: _float("ATR_TP_MULTIPLIER", 3.0))
     min_volume_ratio: float = field(default_factory=lambda: _float("MIN_VOLUME_RATIO", 0.8))
     cooldown_minutes_after_loss: int = field(default_factory=lambda: _float("COOLDOWN_MINUTES_AFTER_LOSS", 30))
     max_slippage_pct: float = field(default_factory=lambda: _float("MAX_SLIPPAGE_PCT", 0.15))

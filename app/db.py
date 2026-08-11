@@ -129,7 +129,16 @@ class Database:
             row = await cursor.fetchone()
             return float(row[0]) if row and row[0] is not None else 0.0
 
+    async def total_realized_pnl(self) -> float:
+        async with aiosqlite.connect(self.path) as db:
+            cursor = await db.execute(
+                "SELECT COALESCE(SUM(realized_pnl_usd), 0) FROM trades WHERE status='closed'"
+            )
+            row = await cursor.fetchone()
+            return float(row[0]) if row and row[0] is not None else 0.0
+
     async def earliest_equity_today(self, since_iso: str) -> float | None:
+
         async with aiosqlite.connect(self.path) as db:
             cursor = await db.execute(
                 "SELECT equity_usd FROM equity_snapshots WHERE ts >= ? ORDER BY id ASC LIMIT 1",

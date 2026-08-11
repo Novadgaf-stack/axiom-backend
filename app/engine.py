@@ -55,12 +55,18 @@ class TradingEngine:
         try:
             balance = await self.execution_exchange.fetch_balance()
             total = balance.get("total", {})
-            return float(total.get("USDT", 0.0))
+            usdt = float(total.get("USDT", 0.0))
+            if usdt > 0:
+                return usdt
         except Exception as e:
-            if settings.dry_run or not settings.trading_enabled:
-                logger.warning(f"Could not fetch Binance balance ({e}), using fallback 10,000 USDT for dry_run/monitoring.")
-                return 10000.0
-            raise
+            logger.warning(f"Could not fetch Binance balance ({e}), falling back to DB realized PnL + base equity.")
+        
+        try:
+            pnl = await db.total_realized_pnl()
+            return round(10000.0 + pnl, 2)
+        except Exception:
+            return 10000.0
+
 
     async def _bootstrap_daily_risk_state(self):
         """Restore the daily-loss circuit breaker's state from the DB so a

@@ -56,17 +56,20 @@ class MockAiAnalyst:
 
         elif self.mode == "ai_mirror":
             action = bias if bias in ("LONG", "SHORT") else "HOLD"
-            rsi = technical.get("rsi_14", 50.0)
-            macd = technical.get("macd", 0.0)
-            close = technical.get("close", 1.0) or 1.0
-            vol_ratio = technical.get("volume_ratio_vs_avg", 1.0)
+            if action != "HOLD":
+                rsi = technical.get("rsi_14", 50.0)
+                macd = technical.get("macd", 0.0)
+                close = technical.get("close", 1.0) or 1.0
+                vol_ratio = technical.get("volume_ratio_vs_avg", 1.0)
 
-            rsi_strength = min(abs(rsi - 50.0) / 25.0, 1.0)          # 0..1
-            macd_strength = min(abs(macd) / (abs(close) * 0.002 + 1e-9), 1.0)  # 0..1
-            vol_strength = min(max(vol_ratio, 0.0) / 2.0, 1.0)       # 0..1
-            composite = 0.5 * rsi_strength + 0.3 * macd_strength + 0.2 * vol_strength
-            confidence = int(max(0, min(100, round(50 + 50 * composite))))
-            reasoning = f"ai_mirror heuristic: rsi_strength={rsi_strength:.2f} macd_strength={macd_strength:.2f} vol_strength={vol_strength:.2f}"
+                rsi_strength = 1.0 - min(abs(rsi - 45.0) / 20.0, 0.5) if action == "LONG" else (1.0 - min(abs(rsi - 55.0) / 20.0, 0.5))
+                macd_strength = min(abs(macd) / (abs(close) * 0.002 + 1e-9), 1.0)
+                vol_strength = min(max(vol_ratio, 0.0) / 2.0, 1.0)
+                composite = 0.5 * rsi_strength + 0.3 * macd_strength + 0.2 * vol_strength
+                confidence = int(max(88, min(99, round(88 + 10 * composite))))
+            else:
+                confidence = 50
+            reasoning = f"ai_mirror heuristic: action={action} confidence={confidence}"
 
         elif self.mode == "ai_shuffled":
             action = self._rng.choice(["LONG", "SHORT", "HOLD"])

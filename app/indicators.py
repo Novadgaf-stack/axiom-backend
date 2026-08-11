@@ -134,19 +134,21 @@ def compute_snapshot(
     bias = "NEUTRAL"
     volume_ok = volume_ratio >= min_volume_ratio
     adx_ok = last_adx >= min_adx
+    
+    # Pullback value entry: price near fast/slow EMA zone, RSI in non-extended value zone (38-54)
     bullish = (
         last_close > last_ema_50
         and last_ema_fast > last_ema_slow
-        and (last_rsi <= 58 or last_close <= last_ema_fast * 1.003 or last_macd > last_macd_signal)
-        and 38 <= last_rsi <= 68
+        and (last_close <= last_ema_fast * 1.006 or last_close <= last_ema_slow * 1.003)
+        and 36 <= last_rsi <= 58
         and volume_ok
         and adx_ok
     )
     bearish = (
         last_close < last_ema_50
         and last_ema_fast < last_ema_slow
-        and (last_rsi >= 42 or last_close >= last_ema_fast * 0.997 or last_macd < last_macd_signal)
-        and 32 <= last_rsi <= 62
+        and (last_close >= last_ema_fast * 0.994 or last_close >= last_ema_slow * 0.997)
+        and 42 <= last_rsi <= 64
         and volume_ok
         and adx_ok
     )
@@ -271,8 +273,8 @@ def compute_all_snapshots(
         bullish = (
             last_close > last_e50
             and last_ef > last_es
-            and (last_rsi <= 58 or last_close <= last_ef * 1.003 or last_macd > last_macd_signal)
-            and 38 <= last_rsi <= 68
+            and (last_close <= last_ef * 1.006 or last_close <= last_es * 1.003)
+            and 36 <= last_rsi <= 58
             and volume_ok
             and adx_ok
             and up_ok
@@ -281,8 +283,8 @@ def compute_all_snapshots(
         bearish = (
             last_close < last_e50
             and last_ef < last_es
-            and (last_rsi >= 42 or last_close >= last_ef * 0.997 or last_macd < last_macd_signal)
-            and 32 <= last_rsi <= 62
+            and (last_close >= last_ef * 0.994 or last_close >= last_es * 0.997)
+            and 42 <= last_rsi <= 64
             and volume_ok
             and adx_ok
             and up_ok

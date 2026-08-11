@@ -227,6 +227,7 @@ def main():
     parser.add_argument("--compare", action="store_true", help="Run technical_only + ai_mirror + ai_random and print a side-by-side comparison.")
     parser.add_argument("--validate", action="store_true", help="Run full institutional validation suite (IS/OOS, Walk-Forward, Regimes, Sensitivity, AI Edge, Monte Carlo) and generate NEXUS-7 STRATEGY VALIDATION REPORT.")
     parser.add_argument("--run-v2-experiments", action="store_true", help="Run NEXUS-7 Pullback v2 controlled incremental experiment series (Experiments A through E) on frozen dataset.")
+    parser.add_argument("--run-candidates", action="store_true", help="Run candidate evaluation matrix (Candidate A: 15m pullback, Candidate B: 1h pullback, Candidate C: 1h V2 Candidate D).")
 
     parser.add_argument("--initial-equity", type=float, default=10_000.0)
     parser.add_argument("--fee-pct", type=float, default=0.1, help="Per-side fee, e.g. 0.1 for Binance spot taker.")
@@ -271,6 +272,22 @@ def main():
     print(f"Loaded {len(candles)} candles in {time.time()-t0:.1f}s.")
     if len(candles) < 200:
         print("WARNING: fewer than 200 candles — results will not be statistically meaningful.")
+
+    if args.run_candidates:
+        from backtest.validation import run_candidate_comparison
+        print("\n" + "=" * 80)
+        print("RUNNING CANDIDATE COMPARISON MATRIX (CANDIDATES A, B, C)...")
+        print("=" * 80)
+        cand_md = run_candidate_comparison(candles, args.symbol, settings_obj)
+
+        os.makedirs(args.out_dir, exist_ok=True)
+        cand_report_path = os.path.join(args.out_dir, "candidate_comparison_report.md")
+        with open(cand_report_path, "w", encoding="utf-8") as f:
+            f.write(cand_md)
+
+        print(cand_md)
+        print(f"\nSaved Candidate Comparison Report to: {cand_report_path}")
+        return
 
     if args.run_v2_experiments:
         from backtest.validation import run_v2_experiment_series
