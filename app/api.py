@@ -53,6 +53,29 @@ def require_auth(
 
 
 
+def _format_position(pos: OpenPosition) -> dict:
+    raw = asdict(pos)
+    sym = pos.symbol
+    asset = sym.split("/")[0] if "/" in sym else sym
+    raw.update({
+        "coin": asset,
+        "asset": asset,
+        "ticker": sym,
+        "symbol": sym,
+        "pair": sym,
+        "amount": pos.quantity,
+        "qty": pos.quantity,
+        "size": pos.quantity,
+        "entryPrice": pos.entry_price,
+        "markPrice": pos.entry_price,
+        "mark_price": pos.entry_price,
+        "pnl": 0.0,
+        "unrealized_pnl": 0.0,
+        "unrealized_pnl_usd": 0.0,
+    })
+    return raw
+
+
 @router.get("/")
 @router.get("/api")
 async def root_info():
@@ -84,7 +107,7 @@ async def get_status():
         daily_pnl = 0.0
         total_pnl = 0.0
     
-    pos_dict = {sym: asdict(pos) for sym, pos in state.open_positions.items()}
+    pos_dict = {sym: _format_position(pos) for sym, pos in state.open_positions.items()}
     pos_list = list(pos_dict.values())
 
     return {
@@ -153,7 +176,7 @@ async def get_balance():
 
 @router.get("/api/positions", dependencies=[Depends(require_auth)])
 async def get_positions():
-    pos_dict = {sym: asdict(pos) for sym, pos in state.open_positions.items()}
+    pos_dict = {sym: _format_position(pos) for sym, pos in state.open_positions.items()}
     pos_list = list(pos_dict.values())
     res = {"status": "ok", "positions": pos_list, "open_positions": pos_list}
     res.update(pos_dict)
