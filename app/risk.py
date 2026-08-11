@@ -189,3 +189,44 @@ class RiskManager:
             tranche1_qty=tranche1_qty,
             tranche2_qty=tranche2_qty,
         )
+
+    def validate_order_risk(
+        self,
+        symbol: str,
+        side: str,
+        entry_price: float,
+        atr: float,
+        available_equity_usd: float,
+        open_position_count: int,
+        confidence_score: int | None = None,
+        trading_allowed: bool = True
+    ) -> tuple[bool, str | None, TradePlan | None]:
+        """
+        Single authoritative risk gatekeeper method.
+        Validates all quantitative risk limits before any order is created.
+        Returns (is_approved, reject_reason, trade_plan).
+        """
+        if not trading_allowed:
+            return False, "TRADING_HALTED_OR_DISABLED", None
+            
+        if self.daily_loss_limit_hit(available_equity_usd):
+            return False, "DAILY_LOSS_LIMIT_REACHED", None
+            
+        if self.in_cooldown(symbol):
+            return False, f"COOLDOWN_ACTIVE_FOR_{symbol}", None
+            
+        plan = self.build_trade_plan(
+            symbol=symbol,
+            side=side,
+            entry_price=entry_price,
+            atr=atr,
+            available_equity_usd=available_equity_usd,
+            open_position_count=open_position_count,
+            confidence_score=confidence_score
+        )
+        
+        if plan is None:
+            return False, "TRADE_PLAN_REJECTED_BY_RISK_LIMITS", None
+            
+        return True, None, plan
+

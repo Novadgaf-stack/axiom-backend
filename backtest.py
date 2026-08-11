@@ -233,6 +233,14 @@ def main():
     parser.add_argument("--run-regime-research", action="store_true", help="Extract multidimensional trade regime feature dataset and run Gemini 2.0 Flash AI regime analysis.")
     parser.add_argument("--run-diversity-expansion", action="store_true", help="Run cross-asset and sample diversity expansion for Benchmark v1 (BTC/USDT, ETH/USDT 365-day datasets).")
     parser.add_argument("--run-robustness-audit", action="store_true", help="Run statistical significance & robustness audit (10,000 bootstrap iterations, quarterly consistency, multi-asset friction matrix).")
+    parser.add_argument("--run-edge-decomposition", action="store_true", help="Run edge decomposition & realism study (trade attribution, outlier concentration, random baseline control, fill realism).")
+    parser.add_argument("--run-strategy-tournament", action="store_true", help="Run strategy-vs-controls tournament (Benchmark v1 vs 6 non-AI / simple technical controls under 0.04%% maker fee).")
+    parser.add_argument("--run-strategy-research", action="store_true", help="Run multi-asset, multi-family strategy research suite (EXP-001 through EXP-006, PBO, walk-forward, controls, and 11 deliverables).")
+    parser.add_argument("--run-research-v2", action="store_true", help="Run Research Reset V2 laboratory (Phase 0 engine audit, Phase 1-12 multi-asset candidate suite, and 14 deliverables).")
+    parser.add_argument("--run-research-v3", action="store_true", help="Run Research V3 Alpha Discovery framework (7 independent hypotheses, 3-tier cost stress, multi-window walk-forward, and 11 deliverables).")
+    parser.add_argument("--run-testnet-certification", action="store_true", help="Run Testnet Operations & Chaos Certification evaluator (Phases 1-4, failure injections, and testnet_certification_report.md).")
+    parser.add_argument("--run-testnet-soak", action="store_true", help="Run 24h Real Testnet Operational Validation & Soak certifier (Phases 1-12, all 6 artifacts).")
+    parser.add_argument("--soak-hours", type=float, default=24.0, help="Target soak hours for operational validation report (default 24.0).")
 
     parser.add_argument("--initial-equity", type=float, default=10_000.0)
     parser.add_argument("--fee-pct", type=float, default=0.1, help="Per-side fee, e.g. 0.1 for Binance spot taker.")
@@ -298,6 +306,77 @@ def main():
             f.write(audit_md)
         print(audit_md)
         print(f"\nSaved Robustness Audit Report to: {report_path}")
+        return
+
+    if args.run_edge_decomposition:
+        from backtest.validation import run_edge_decomposition_study
+        print("\n" + "=" * 80)
+        print("RUNNING NEXUS-7 EDGE DECOMPOSITION & REALISM STUDY...")
+        print("=" * 80)
+        decomp_md = run_edge_decomposition_study("./data/historical", settings_obj)
+        report_path = os.path.join(args.out_dir, "edge_decomposition_report.md")
+        os.makedirs(args.out_dir, exist_ok=True)
+        with open(report_path, "w", encoding="utf-8") as f:
+            f.write(decomp_md)
+        print(decomp_md)
+        print(f"\nSaved Edge Decomposition Report to: {report_path}")
+        return
+
+    if args.run_strategy_tournament:
+        from backtest.validation import run_strategy_tournament_suite
+        print("\n" + "=" * 80)
+        print("RUNNING NEXUS-7 STRATEGY-VS-CONTROLS TOURNAMENT...")
+        print("=" * 80)
+        tourn_md = run_strategy_tournament_suite("./data/historical", settings_obj)
+        report_path = os.path.join(args.out_dir, "strategy_tournament_report.md")
+        os.makedirs(args.out_dir, exist_ok=True)
+        with open(report_path, "w", encoding="utf-8") as f:
+            f.write(tourn_md)
+        print(tourn_md)
+        print(f"\nSaved Strategy Tournament Report to: {report_path}")
+        return
+
+    if args.run_strategy_research:
+        from backtest.research.pipeline import run_full_strategy_research_pipeline
+        print("\n" + "=" * 80)
+        print("RUNNING NEXUS-7 MULTI-ASSET STRATEGY RESEARCH RESET PIPELINE...")
+        print("=" * 80)
+        report_md = run_full_strategy_research_pipeline("./data/historical", settings_obj, "./strategy_research")
+        print("\n" + report_md.encode('ascii', errors='ignore').decode('ascii'))
+        return
+
+    if args.run_research_v2:
+        from backtest.research_v2.pipeline import run_full_research_v2_pipeline
+        print("\n" + "=" * 80)
+        print("RUNNING NEXUS-7 QUANT RESEARCH RESET V2 LABORATORY...")
+        print("=" * 80)
+        report_md = run_full_research_v2_pipeline("./data/historical", settings_obj, "./research_v2")
+        print("\n" + report_md.encode('ascii', errors='ignore').decode('ascii'))
+        return
+
+    if args.run_research_v3:
+        from backtest.research_v3.pipeline import run_full_research_v3_pipeline
+        print("\n" + "=" * 80)
+        print("RUNNING NEXUS-7 QUANT RESEARCH V3: ALPHA DISCOVERY LABORATORY...")
+        print("=" * 80)
+        res = run_full_research_v3_pipeline("./data/historical", settings_obj, "./research_v3")
+        return
+
+    if args.run_testnet_certification:
+        from testnet_certifier import run_testnet_operational_certification
+        print("\n" + "=" * 80)
+        print("RUNNING NEXUS-7 TESTNET OPERATIONS & CHAOS CERTIFICATION...")
+        print("=" * 80)
+        report_md = run_testnet_operational_certification("testnet_certification_report.md")
+        print("\n" + report_md.encode('ascii', errors='ignore').decode('ascii'))
+        return
+
+    if args.run_testnet_soak:
+        from testnet_soak_runner import run_testnet_soak_validation
+        print("\n" + "=" * 80)
+        print("RUNNING NEXUS-7 REAL TESTNET OPERATIONAL VALIDATION & SOAK...")
+        print("=" * 80)
+        res = run_testnet_soak_validation(soak_hours=args.soak_hours)
         return
 
     t0 = time.time()
