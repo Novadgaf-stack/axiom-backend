@@ -58,12 +58,8 @@ class BacktestSimulator:
         self.initial_equity = initial_equity
         self.execution_mode = execution_mode
         self.unfilled_orders = 0
-        if execution_mode == "maker":
-            self.fee_pct = 0.02
-            self.slippage_pct = 0.00
-        else:
-            self.fee_pct = fee_pct
-            self.slippage_pct = slippage_pct
+        self.fee_pct = fee_pct
+        self.slippage_pct = slippage_pct
         self.max_hold_bars = max_hold_bars
         self.same_bar_conflict = same_bar_conflict
         from app.indicators import compute_all_snapshots

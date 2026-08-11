@@ -11,6 +11,7 @@ Any failure at any stage collapses to HOLD. There is no code path where raw
 model text reaches order placement.
 """
 import json
+import os
 from dataclasses import dataclass
 from typing import Any, Literal, Optional
 
@@ -248,4 +249,97 @@ class AIAnalyst:
             return AnalystResult(decision=decision, raw_text=candidate_text)
         except (KeyError, IndexError, json.JSONDecodeError, ValidationError) as e:
             logger.error(f"[{symbol}] Gemini response failed strict validation: {e} | raw={raw_response[:500]}")
-            return AnalystResult(decision=None, raw_text=raw_response, error=f"validation_failed: {e}")
+            return AnalystResult(decision=None, raw_text=raw_response, error=str(e))
+
+
+class GeminiRegimeAnalyst:
+    """
+    Uses Gemini 2.0 Flash to analyze multidimensional market regime datasets (winning vs losing trade vectors)
+    and discover structural market signatures that separate high-expectancy trend environments from low-expectancy chop.
+    """
+    def __init__(self):
+        self.api_key = getattr(settings, "GEMINI_API_KEY", getattr(settings, "gemini_api_key", ""))
+        self.model = getattr(settings, "gemini_model", "gemini-2.0-flash")
+
+    async def analyze_regime_dataset(self, csv_file_path: str) -> dict:
+        import pandas as pd
+        if not os.path.exists(csv_file_path):
+            return {"error": f"Dataset file not found: {csv_file_path}"}
+
+        df = pd.read_csv(csv_file_path)
+        if df.empty:
+            return {"error": "Dataset is empty"}
+
+        wins = df[df["outcome"] == "WIN"]
+        losses = df[df["outcome"] == "LOSS"]
+
+        summary = {
+            "total_trades": len(df),
+            "wins_count": len(wins),
+            "losses_count": len(losses),
+            "win_rate_pct": round(len(wins) / len(df) * 100.0, 2) if len(df) > 0 else 0.0,
+            "win_avg_4h_adx": round(float(wins["4h_adx"].mean()), 2) if not wins.empty else 0.0,
+            "loss_avg_4h_adx": round(float(losses["4h_adx"].mean()), 2) if not losses.empty else 0.0,
+            "win_avg_4h_ema_slope": round(float(wins["4h_ema50_slope_pct"].mean()), 3) if not wins.empty else 0.0,
+            "loss_avg_4h_ema_slope": round(float(losses["4h_ema50_slope_pct"].mean()), 3) if not losses.empty else 0.0,
+            "win_avg_volatility_pct": round(float(wins["4h_volatility_pct"].mean()), 2) if not wins.empty else 0.0,
+            "loss_avg_volatility_pct": round(float(losses["4h_volatility_pct"].mean()), 2) if not losses.empty else 0.0,
+            "win_avg_1h_adx": round(float(wins["1h_adx"].mean()), 2) if not wins.empty else 0.0,
+            "loss_avg_1h_adx": round(float(losses["1h_adx"].mean()), 2) if not losses.empty else 0.0,
+        }
+
+        if not self.api_key or not self.api_key.strip():
+            logger.warning("GEMINI_API_KEY missing — returning local statistical summary without AI synthesis.")
+            return {"status": "LOCAL_SUMMARY_ONLY", "statistical_summary": summary}
+
+        prompt = f"""
+You are the Lead Quantitative Analyst for Nexus-7 Trading Engine.
+Analyze the following empirical trade regime statistical summary derived from backtesting:
+
+```json
+{json.dumps(summary, indent=2)}
+```
+
+First 15 Trade Feature Records:
+```csv
+{df.head(15).to_csv(index=False)}
+```
+
+INSTRUCTIONS:
+1. Identify the key structural market characteristics (4H ADX, 4H EMA slope, Volatility %, 1H ADX) that differentiate WINNING trades from LOSING trades.
+2. Formulate an institutional-grade, zero-overfitting Regime Gate Rule that declares when market conditions are "HIGH_EXPECTANCY_TREND" vs "LOW_EXPECTANCY_CHOP".
+3. Return a clean JSON object with keys:
+   - "winning_regime_signature": short summary of conditions present during winning trades
+   - "losing_regime_signature": short summary of conditions present during losing trades
+   - "recommended_4h_adx_threshold": float
+   - "recommended_ema_slope_threshold": float
+   - "regime_verdict": "STRONG_REGIME_CLARITY" or "HIGH_NOISE_INSUFFICIENT_SAMPLE"
+"""
+
+        candidate_models = ["gemini-1.5-flash-latest", "gemini-1.5-pro-latest", "gemini-2.0-flash-lite", "gemini-2.5-flash-lite", "gemini-1.5-flash-8b"]
+        body = {
+            "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+            "generationConfig": {"temperature": 0.2},
+        }
+
+        timeout = aiohttp.ClientTimeout(total=30)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            for mod in candidate_models:
+                url = GEMINI_ENDPOINT.format(model=mod)
+                try:
+                    async with session.post(url, params={"key": self.api_key}, json=body) as resp:
+                        text = await resp.text()
+                        if resp.status == 200:
+                            envelope = json.loads(text)
+                            ai_text = envelope["candidates"][0]["content"]["parts"][0]["text"]
+                            return {
+                                "status": "SUCCESS",
+                                "model_used": mod,
+                                "statistical_summary": summary,
+                                "gemini_analysis_text": ai_text,
+                            }
+                        logger.warning(f"Gemini API model {mod} returned status {resp.status}: {text[:150]}")
+                except Exception as e:
+                    logger.warning(f"Gemini API model {mod} request failed: {e}")
+
+            return {"status": "ALL_MODELS_FAILED", "statistical_summary": summary}

@@ -228,6 +228,11 @@ def main():
     parser.add_argument("--validate", action="store_true", help="Run full institutional validation suite (IS/OOS, Walk-Forward, Regimes, Sensitivity, AI Edge, Monte Carlo) and generate NEXUS-7 STRATEGY VALIDATION REPORT.")
     parser.add_argument("--run-v2-experiments", action="store_true", help="Run NEXUS-7 Pullback v2 controlled incremental experiment series (Experiments A through E) on frozen dataset.")
     parser.add_argument("--run-candidates", action="store_true", help="Run candidate evaluation matrix (Candidate A: 15m pullback, Candidate B: 1h pullback, Candidate C: 1h V2 Candidate D).")
+    parser.add_argument("--run-sensitivity-matrix", action="store_true", help="Run execution friction sensitivity matrix for Candidate C (Optimistic/Normal/Conservative Maker vs Taker).")
+    parser.add_argument("--run-frozen-oos", action="store_true", help="Run frozen temporal Out-of-Sample (OOS) holdout evaluation for Candidate C without modifying parameters.")
+    parser.add_argument("--run-regime-research", action="store_true", help="Extract multidimensional trade regime feature dataset and run Gemini 2.0 Flash AI regime analysis.")
+    parser.add_argument("--run-diversity-expansion", action="store_true", help="Run cross-asset and sample diversity expansion for Benchmark v1 (BTC/USDT, ETH/USDT 365-day datasets).")
+    parser.add_argument("--run-robustness-audit", action="store_true", help="Run statistical significance & robustness audit (10,000 bootstrap iterations, quarterly consistency, multi-asset friction matrix).")
 
     parser.add_argument("--initial-equity", type=float, default=10_000.0)
     parser.add_argument("--fee-pct", type=float, default=0.1, help="Per-side fee, e.g. 0.1 for Binance spot taker.")
@@ -267,11 +272,116 @@ def main():
     settings_obj = build_settings(args)
     apply_settings_override(settings_obj)
 
+    if args.run_diversity_expansion:
+        from backtest.validation import run_sample_diversity_expansion
+        print("\n" + "=" * 80)
+        print("RUNNING CROSS-ASSET & SAMPLE DIVERSITY EXPANSION...")
+        print("=" * 80)
+        diversity_md = run_sample_diversity_expansion("./data/historical", settings_obj)
+        report_path = os.path.join(args.out_dir, "sample_diversity_expansion_report.md")
+        os.makedirs(args.out_dir, exist_ok=True)
+        with open(report_path, "w", encoding="utf-8") as f:
+            f.write(diversity_md)
+        print(diversity_md)
+        print(f"\nSaved Sample Diversity Expansion Report to: {report_path}")
+        return
+
+    if args.run_robustness_audit:
+        from backtest.validation import run_statistical_robustness_audit
+        print("\n" + "=" * 80)
+        print("RUNNING NEXUS-7 STATISTICAL SIGNIFICANCE & ROBUSTNESS AUDIT...")
+        print("=" * 80)
+        audit_md = run_statistical_robustness_audit("./data/historical", settings_obj)
+        report_path = os.path.join(args.out_dir, "robustness_audit_report.md")
+        os.makedirs(args.out_dir, exist_ok=True)
+        with open(report_path, "w", encoding="utf-8") as f:
+            f.write(audit_md)
+        print(audit_md)
+        print(f"\nSaved Robustness Audit Report to: {report_path}")
+        return
+
     t0 = time.time()
     candles = load_candles(args)
     print(f"Loaded {len(candles)} candles in {time.time()-t0:.1f}s.")
     if len(candles) < 200:
         print("WARNING: fewer than 200 candles — results will not be statistically meaningful.")
+
+    if args.run_regime_research:
+        from backtest.regime_research import (
+            extract_regime_dataset,
+            run_regime_bucket_analysis,
+            evaluate_regime_hypothesis_oos,
+        )
+
+        print("\n" + "=" * 80)
+        print("1. RUNNING REGIME RESEARCH & FEATURE VECTOR EXTRACTION...")
+        print("=" * 80)
+        out_csv = os.path.join(args.out_dir, "regime_trade_dataset.csv")
+        df_dataset = extract_regime_dataset(candles, args.symbol, settings_obj, out_csv_path=out_csv)
+
+        print("\n" + "=" * 80)
+        print("2. RUNNING PREDEFINED FEATURE BUCKET HYPOTHESIS TEST...")
+        print("=" * 80)
+        bucket_md = run_regime_bucket_analysis(df_dataset)
+        bucket_report_path = os.path.join(args.out_dir, "regime_bucket_analysis.md")
+        with open(bucket_report_path, "w", encoding="utf-8") as f:
+            f.write(bucket_md)
+        print(bucket_md)
+
+        print("\n" + "=" * 80)
+        print("3. RUNNING FROZEN OUT-OF-SAMPLE (OOS) REGIME HYPOTHESIS VALIDATION...")
+        print("=" * 80)
+        oos_regime_md = evaluate_regime_hypothesis_oos(candles, args.symbol, settings_obj)
+        oos_report_path = os.path.join(args.out_dir, "regime_oos_validation.md")
+        with open(oos_report_path, "w", encoding="utf-8") as f:
+            f.write(oos_regime_md)
+        print(oos_regime_md)
+
+        print(f"\nSaved Bucket Analysis Report to: {bucket_report_path}")
+        print(f"Saved OOS Regime Validation Report to: {oos_report_path}")
+        return
+
+    if args.run_sensitivity_matrix:
+        from backtest.validation import run_execution_sensitivity_matrix
+        import pandas as pd
+        df_15m = pd.DataFrame(candles, columns=["ts", "open", "high", "low", "close", "volume"])
+        dt_idx = pd.to_datetime(df_15m["ts"], unit="ms", utc=True)
+        df_1h = df_15m.set_index(dt_idx).resample("1h").agg({
+            "ts": "first", "open": "first", "high": "max", "low": "min", "close": "last", "volume": "sum"
+        }).dropna()
+        candles_1h = df_1h[["ts", "open", "high", "low", "close", "volume"]].values.tolist()
+
+        cand_c_settings = dataclasses.replace(settings_obj, timeframe="1h", min_volume_ratio=0.7, min_confidence_score=90)
+        print("\n" + "=" * 80)
+        print("RUNNING CANDIDATE C EXECUTION FRICTION SENSITIVITY MATRIX...")
+        print("=" * 80)
+        sens_md = run_execution_sensitivity_matrix(candles_1h, args.symbol, cand_c_settings)
+
+        os.makedirs(args.out_dir, exist_ok=True)
+        sens_report_path = os.path.join(args.out_dir, "execution_sensitivity_report.md")
+        with open(sens_report_path, "w", encoding="utf-8") as f:
+            f.write(sens_md)
+
+        print(sens_md)
+        print(f"\nSaved Sensitivity Report to: {sens_report_path}")
+        return
+
+    if args.run_frozen_oos:
+        from backtest.validation import run_frozen_oos_evaluation
+        cand_c_settings = dataclasses.replace(settings_obj, timeframe="1h", min_volume_ratio=0.7, min_confidence_score=90)
+        print("\n" + "=" * 80)
+        print("RUNNING FROZEN OUT-OF-SAMPLE (OOS) TEMPORAL HOLDOUT EVALUATION...")
+        print("=" * 80)
+        oos_md = run_frozen_oos_evaluation(candles, args.symbol, cand_c_settings)
+
+        os.makedirs(args.out_dir, exist_ok=True)
+        oos_report_path = os.path.join(args.out_dir, "frozen_oos_report.md")
+        with open(oos_report_path, "w", encoding="utf-8") as f:
+            f.write(oos_md)
+
+        print(oos_md)
+        print(f"\nSaved Frozen OOS Report to: {oos_report_path}")
+        return
 
     if args.run_candidates:
         from backtest.validation import run_candidate_comparison

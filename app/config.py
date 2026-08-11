@@ -58,7 +58,7 @@ class Settings:
 
     # --- Gemini ---
     gemini_api_key: str = field(default_factory=lambda: os.getenv("GEMINI_API_KEY", ""))
-    gemini_model: str = field(default_factory=lambda: os.getenv("GEMINI_MODEL", "gemini-2.0-flash"))
+    gemini_model: str = field(default_factory=lambda: os.getenv("GEMINI_MODEL", "gemini-1.5-flash"))
 
     # --- Trading universe ---
     trading_pairs: list[str] = field(default_factory=lambda: _list("TRADING_PAIRS", ["BTC/USDT", "ETH/USDT"], upper=True))
