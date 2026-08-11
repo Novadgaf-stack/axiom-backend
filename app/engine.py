@@ -94,9 +94,14 @@ class TradingEngine:
         if len(ohlcv) < 2:
             return
         last_closed_ts = ohlcv[-2][0]
-        if self._last_evaluated_candle_ts.get(symbol) == last_closed_ts:
-            return
+        is_new_candle = self._last_evaluated_candle_ts.get(symbol) != last_closed_ts
         self._last_evaluated_candle_ts[symbol] = last_closed_ts
+
+        # Check if we should perform an active market scan evaluation
+        recent_count = await db.decision_count_since(symbol, 15)
+        if not is_new_candle and recent_count > 0:
+            return
+
 
         order_book = await self.data_exchange.fetch_order_book(symbol)
 

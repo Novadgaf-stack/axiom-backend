@@ -138,7 +138,6 @@ class Database:
             return float(row[0]) if row and row[0] is not None else 0.0
 
     async def earliest_equity_today(self, since_iso: str) -> float | None:
-
         async with aiosqlite.connect(self.path) as db:
             cursor = await db.execute(
                 "SELECT equity_usd FROM equity_snapshots WHERE ts >= ? ORDER BY id ASC LIMIT 1",
@@ -146,6 +145,18 @@ class Database:
             )
             row = await cursor.fetchone()
             return float(row[0]) if row else None
+
+    async def decision_count_since(self, symbol: str, minutes: int = 15) -> int:
+        from datetime import timedelta
+        since_iso = (datetime.now(timezone.utc) - timedelta(minutes=minutes)).isoformat()
+        async with aiosqlite.connect(self.path) as db:
+            cursor = await db.execute(
+                "SELECT COUNT(*) FROM decisions WHERE symbol = ? AND ts >= ?",
+                (symbol, since_iso),
+            )
+            row = await cursor.fetchone()
+            return int(row[0]) if row else 0
+
 
 
 db = Database()
