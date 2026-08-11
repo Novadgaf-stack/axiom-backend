@@ -33,13 +33,16 @@ Modes:
 """
 import random
 from app.ai_analyst import AnalystResult, GeminiDecision
+from app.config import settings
+
 
 
 class MockAiAnalyst:
-    def __init__(self, mode: str = "ai_mirror", seed: int = 42):
-        assert mode in ("technical_only", "ai_mirror", "ai_random"), f"unknown mock mode {mode}"
+    def __init__(self, mode: str = "ai_mirror", seed: int = 42, settings_obj=None):
+        assert mode in ("technical_only", "ai_mirror", "ai_random", "ai_shuffled"), f"unknown mock mode {mode}"
         self.mode = mode
         self._rng = random.Random(seed)
+        self.settings_obj = settings_obj
         self.call_count = 0
 
     async def analyze(self, symbol: str, technical: dict, order_book_summary: dict) -> AnalystResult:
@@ -65,18 +68,29 @@ class MockAiAnalyst:
             confidence = int(max(0, min(100, round(50 + 50 * composite))))
             reasoning = f"ai_mirror heuristic: rsi_strength={rsi_strength:.2f} macd_strength={macd_strength:.2f} vol_strength={vol_strength:.2f}"
 
+        elif self.mode == "ai_shuffled":
+            action = self._rng.choice(["LONG", "SHORT", "HOLD"])
+            confidence = self._rng.randint(60, 100)
+            reasoning = "ai_shuffled control mode: randomized AI decision and confidence permutation."
+
         else:  # ai_random
             action = self._rng.choice(["LONG", "SHORT", "HOLD"])
             confidence = self._rng.randint(0, 100)
             reasoning = "ai_random null-control mode: noise, no relationship to the data."
 
         risk_flags = []
-        if confidence < 85:
-            risk_flags.append("Confidence below 85 threshold")
+        cfg = self.settings_obj or settings
+        min_conf = getattr(cfg, "min_confidence_score", 88)
+        if confidence < min_conf:
+            risk_flags.append(f"Confidence below {min_conf} threshold")
+
+        dec_str = "BUY" if action == "LONG" else ("SELL" if action == "SHORT" else "HOLD")
+        approved = (confidence >= min_conf and dec_str in ("BUY", "SELL"))
 
         decision = GeminiDecision(
-            action=action,
+            decision=dec_str,
             confidence_score=confidence,
+            approved=approved,
             risk_flags=risk_flags,
             reasoning=reasoning,
         )

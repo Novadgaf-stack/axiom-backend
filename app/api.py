@@ -55,6 +55,7 @@ async def get_status():
         "last_error": state.last_error,
         "halt_reason": state.halt_reason,
         "last_equity_usd": state.last_equity_usd,
+        "last_equity": state.last_equity_usd,
         "open_position_count": len(state.open_positions),
         "config": {
             "testnet": settings.binance_testnet,
@@ -64,6 +65,9 @@ async def get_status():
             "timeframe": settings.timeframe,
             "min_confidence_score": settings.min_confidence_score,
             "poll_interval_seconds": settings.poll_interval_seconds,
+            "max_daily_loss_pct": settings.max_daily_loss_pct,
+            "max_open_positions": settings.max_open_positions,
+            "risk_per_trade_pct": settings.risk_per_trade_pct,
         },
     }
 

@@ -101,7 +101,7 @@ class StrategyEngine:
         if decision.action == "HOLD":
             return Decision(symbol, "HOLD", technical, analyst_result, reject_reason="ai_said_hold")
 
-        if decision.confidence_score <= settings.min_confidence_score:
+        if decision.confidence_score < settings.min_confidence_score:
             return Decision(
                 symbol, "HOLD", technical, analyst_result,
                 reject_reason=f"confidence_{decision.confidence_score}_below_threshold_{settings.min_confidence_score}",

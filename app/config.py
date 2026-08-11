@@ -67,7 +67,7 @@ class Settings:
     poll_interval_seconds: int = field(default_factory=lambda: _int("POLL_INTERVAL_SECONDS", 60))
 
     # --- Decision gating & filters ---
-    min_confidence_score: int = field(default_factory=lambda: _int("MIN_CONFIDENCE_SCORE", 85))
+    min_confidence_score: int = field(default_factory=lambda: _int("AI_MIN_CONFIDENCE", _int("MIN_CONFIDENCE_SCORE", 88)))
     require_technical_confirmation: bool = field(
         default_factory=lambda: _bool("REQUIRE_TECHNICAL_CONFIRMATION", True)
     )
@@ -108,7 +108,16 @@ class Settings:
             [
                 "https://nexus-7-weex-terminal.vercel.app",
                 "http://localhost:3000",
+                "http://localhost:3001",
                 "http://localhost:5173",
+                "http://localhost:5174",
+                "http://localhost:8080",
+                "http://localhost:4173",
+                "http://127.0.0.1:3000",
+                "http://127.0.0.1:5173",
+                "http://127.0.0.1:5174",
+                "http://127.0.0.1:10000",
+                "http://localhost:10000",
             ],
         )
     )
@@ -123,6 +132,14 @@ class Settings:
     @property
     def ALLOWED_ORIGINS(self) -> list[str]:
         return self.allowed_origins
+
+    @property
+    def GEMINI_API_KEY(self) -> str:
+        return self.gemini_api_key
+
+    @property
+    def AI_MIN_CONFIDENCE(self) -> int:
+        return self.min_confidence_score
 
     def validate(self) -> list[str]:
         """Returns a list of human-readable problems. Empty list = OK to start."""

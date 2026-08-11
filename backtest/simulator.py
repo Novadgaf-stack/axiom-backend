@@ -42,15 +42,28 @@ class BacktestSimulator:
         slippage_pct: float = 0.05,
         max_hold_bars: int = 96,
         same_bar_conflict: str = "conservative",  # "conservative" -> SL wins; "optimistic" -> TP wins
+        execution_mode: str = "taker",  # "taker" or "maker"
+        enable_4h_trend_filter: bool = False,
+        enable_4h_chop_filter: bool = False,
     ):
         self.candles = candles
         self.symbol = symbol
         self.settings = settings_obj
+        import app.risk as risk_mod
+        import app.strategy as strategy_mod
+        risk_mod.settings = self.settings
+        strategy_mod.settings = self.settings
         self.strategy = StrategyEngine(analyst)
         self.risk = RiskManager()
         self.initial_equity = initial_equity
-        self.fee_pct = fee_pct
-        self.slippage_pct = slippage_pct
+        self.execution_mode = execution_mode
+        self.unfilled_orders = 0
+        if execution_mode == "maker":
+            self.fee_pct = 0.02
+            self.slippage_pct = 0.00
+        else:
+            self.fee_pct = fee_pct
+            self.slippage_pct = slippage_pct
         self.max_hold_bars = max_hold_bars
         self.same_bar_conflict = same_bar_conflict
         from app.indicators import compute_all_snapshots
@@ -60,6 +73,8 @@ class BacktestSimulator:
             atr_period=self.settings.atr_period,
             min_volume_ratio=self.settings.min_volume_ratio,
             min_adx=getattr(self.settings, "min_adx", 20.0),
+            enable_4h_trend_filter=enable_4h_trend_filter,
+            enable_4h_chop_filter=enable_4h_chop_filter,
         )
         self.min_lookback = max(30, self.settings.atr_period + 5) + 1
 
@@ -102,6 +117,20 @@ class BacktestSimulator:
             if entry_index >= len(self.candles):
                 break
 
+            limit_price = self.candles[entry_index][1]  # Next candle's open price
+            filled_index = entry_index
+
+            if self.execution_mode == "maker":
+                # Limit order fill uncertainty: check if Low of entry candle or subsequent candle touches limit price
+                if self.candles[entry_index][3] <= limit_price:
+                    filled_index = entry_index
+                elif entry_index + 1 < len(self.candles) and self.candles[entry_index + 1][3] <= limit_price:
+                    filled_index = entry_index + 1
+                else:
+                    self.unfilled_orders += 1
+                    i += 1
+                    continue
+
             confidence_score = (
                 decision.analyst.decision.confidence_score
                 if (decision.analyst and decision.analyst.decision)
@@ -111,7 +140,7 @@ class BacktestSimulator:
             plan = self.risk.build_trade_plan(
                 symbol=self.symbol,
                 side="buy",
-                entry_price=self.candles[entry_index][1],  # next candle's open
+                entry_price=limit_price,
                 atr=snapshot.atr,
                 available_equity_usd=equity,
                 open_position_count=0,
@@ -145,6 +174,7 @@ class BacktestSimulator:
             stop_loss=plan.stop_loss,
             take_profit=plan.take_profit,
             risk_usd=plan.risk_usd,
+            ai_confidence=confidence_score,
         )
 
         last_scan_index = min(len(self.candles) - 1, entry_index + self.max_hold_bars)

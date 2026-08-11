@@ -49,11 +49,6 @@ def _write_csv(path: str, candles: list):
 
 
 def fetch_binance_history(symbol: str, timeframe: str, days: int, cache_dir: str, refresh: bool = False, verbose: bool = True) -> list:
-    """Paginated historical fetch via ccxt, cached to disk. Requires network
-    access to Binance from wherever this script runs — most sandboxed dev
-    environments (including the one this repo was built in) block that, so
-    this is meant to be run on your own machine or CI, not inside a
-    restricted container."""
     import ccxt
 
     now_ms = int(time.time() * 1000)
@@ -65,44 +60,50 @@ def fetch_binance_history(symbol: str, timeframe: str, days: int, cache_dir: str
             print(f"Loading cached history: {path}")
         return _read_csv(path)
 
-    try:
-        from app.config import settings
-        exchange_id = getattr(settings, "data_exchange_id", "bybit").lower()
-    except Exception:
-        exchange_id = "bybit"
-
-    if hasattr(ccxt, exchange_id):
-        exchange_cls = getattr(ccxt, exchange_id)
-    else:
-        exchange_cls = ccxt.bybit
-        exchange_id = "bybit"
-
-    exchange = exchange_cls({"enableRateLimit": True})
-    timeframe_ms = exchange.parse_timeframe(timeframe) * 1000
+    exchanges_to_try = ["binance", "bybit", "kraken"]
     all_candles = []
-    since = start_ms
-    limit = 1000
 
-    if verbose:
-        print(f"Fetching {symbol} {timeframe} from {exchange_id}, last {days} days...")
+    for ex_id in exchanges_to_try:
+        if not hasattr(ccxt, ex_id):
+            continue
+        try:
+            exchange_cls = getattr(ccxt, ex_id)
+            exchange = exchange_cls({"enableRateLimit": True, "timeout": 15000})
+            timeframe_ms = exchange.parse_timeframe(timeframe) * 1000
+            since = start_ms
+            limit = 1000
 
-    while since < now_ms:
-        batch = exchange.fetch_ohlcv(symbol, timeframe, since=since, limit=limit)
-        if not batch:
-            break
-        all_candles.extend(batch)
-        last_ts = batch[-1][0]
-        if last_ts <= since:
-            break  # safety valve against a pagination stall
-        since = last_ts + timeframe_ms
-        if verbose:
-            print(f"  fetched up to {batch[-1][0]}, total candles so far: {len(all_candles)}")
-        if len(batch) < limit:
-            break
-        time.sleep(exchange.rateLimit / 1000)
+            if verbose:
+                print(f"Fetching {symbol} {timeframe} from {ex_id}, last {days} days...")
+
+            candles_batch = []
+            while since < now_ms:
+                batch = exchange.fetch_ohlcv(symbol, timeframe, since=since, limit=limit)
+                if not batch:
+                    break
+                candles_batch.extend(batch)
+                last_ts = batch[-1][0]
+                if last_ts <= since:
+                    break
+                since = last_ts + timeframe_ms
+                if len(batch) < limit:
+                    break
+                time.sleep(exchange.rateLimit / 1000)
+
+            if candles_batch:
+                all_candles = candles_batch
+                if verbose:
+                    print(f"Successfully fetched {len(all_candles)} candles from {ex_id}.")
+                break
+        except Exception as e:
+            if verbose:
+                print(f"Fetch from {ex_id} failed ({e}), trying next exchange...")
+            continue
+
+    if not all_candles:
+        raise RuntimeError("Failed to fetch historical candles from all public exchanges (binance, bybit, kraken).")
 
     all_candles = [c for c in all_candles if c[0] <= now_ms]
-    # de-dup + sort defensively — pagination edges can occasionally overlap
     dedup = {c[0]: c for c in all_candles}
     all_candles = sorted(dedup.values(), key=lambda c: c[0])
 
@@ -110,6 +111,7 @@ def fetch_binance_history(symbol: str, timeframe: str, days: int, cache_dir: str
     if verbose:
         print(f"Fetched {len(all_candles)} candles. Cached to {path}")
     return all_candles
+
 
 
 def load_csv_history(path: str) -> list:

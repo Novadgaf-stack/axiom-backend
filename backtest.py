@@ -226,6 +226,7 @@ def main():
     parser.add_argument("--mode", choices=["technical_only", "ai_mirror", "ai_random", "ai_live"], default="ai_mirror")
     parser.add_argument("--compare", action="store_true", help="Run technical_only + ai_mirror + ai_random and print a side-by-side comparison.")
     parser.add_argument("--validate", action="store_true", help="Run full institutional validation suite (IS/OOS, Walk-Forward, Regimes, Sensitivity, AI Edge, Monte Carlo) and generate NEXUS-7 STRATEGY VALIDATION REPORT.")
+    parser.add_argument("--run-v2-experiments", action="store_true", help="Run NEXUS-7 Pullback v2 controlled incremental experiment series (Experiments A through E) on frozen dataset.")
 
     parser.add_argument("--initial-equity", type=float, default=10_000.0)
     parser.add_argument("--fee-pct", type=float, default=0.1, help="Per-side fee, e.g. 0.1 for Binance spot taker.")
@@ -256,6 +257,7 @@ def main():
     parser.add_argument("--max-live-calls", type=int, default=200, help="Hard cap on real Gemini API calls in ai_live mode.")
     parser.add_argument("--live-call-delay", type=float, default=1.0, help="Seconds to sleep between ai_live calls.")
 
+    parser.add_argument("--trace-trade", type=int, default=None, help="Print detailed diagnostic trace for a specific trade ID (1-indexed).")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--out-dir", default="./backtest_results")
 
@@ -269,6 +271,22 @@ def main():
     print(f"Loaded {len(candles)} candles in {time.time()-t0:.1f}s.")
     if len(candles) < 200:
         print("WARNING: fewer than 200 candles — results will not be statistically meaningful.")
+
+    if args.run_v2_experiments:
+        from backtest.validation import run_v2_experiment_series
+        print("\n" + "=" * 80)
+        print("RUNNING NEXUS-7 PULLBACK V2 EXPERIMENT SERIES (EXPERIMENTS A -> E)...")
+        print("=" * 80)
+        exp_md = run_v2_experiment_series(candles, args.symbol, settings_obj)
+
+        os.makedirs(args.out_dir, exist_ok=True)
+        exp_report_path = os.path.join(args.out_dir, "v2_experiment_report.md")
+        with open(exp_report_path, "w", encoding="utf-8") as f:
+            f.write(exp_md)
+
+        print(exp_md)
+        print(f"\nSaved Experiment Report to: {exp_report_path}")
+        return
 
     if args.validate:
         from backtest.validation import run_full_validation_suite
@@ -305,8 +323,52 @@ def main():
         save_outputs(report, args.out_dir, mode)
         reports[mode] = report
 
+        if args.trace_trade is not None:
+            trace_trade(report, args.trace_trade, candles)
+
     if len(reports) > 1:
         print_comparison(reports)
+
+
+def trace_trade(report, trade_id: int, candles: list):
+    from datetime import datetime, timezone
+    if not report.trades:
+        print("No trades were generated during this backtest run.")
+        return
+    if trade_id < 1 or trade_id > len(report.trades):
+        print(f"Invalid trade_id {trade_id}. Total trades generated: {len(report.trades)}")
+        return
+
+    trade = report.trades[trade_id - 1]
+    dt_entry = datetime.fromtimestamp(trade.entry_time_ms / 1000, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    dt_exit = datetime.fromtimestamp(trade.exit_time_ms / 1000, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC") if trade.exit_time_ms else "N/A"
+
+    print("\n" + "=" * 80)
+    print(f" TRADE TRACE DIAGNOSTIC REPORT: Trade #{trade_id} / {len(report.trades)}")
+    print("=" * 80)
+    print(f" Symbol:                   {trade.symbol}")
+    print(f" Entry Bar Index:          {trade.entry_index}")
+    print(f" Entry Timestamp:          {dt_entry} ({trade.entry_time_ms} ms)")
+    print(f" Entry Fill Price:         ${trade.entry_price:,.2f}")
+    print(f" Position Quantity:        {trade.quantity:.6f} units")
+    print(f" Initial Risk USD:         ${trade.risk_usd:,.2f}")
+    print(f" AI Confidence Score:      {trade.ai_confidence if trade.ai_confidence is not None else 'N/A'}")
+    print("-" * 80)
+    print(f" Stop Loss Level:          ${trade.stop_loss:,.2f}")
+    print(f" Take Profit Target:       ${trade.take_profit:,.2f}")
+    if trade.tp1_price:
+        print(f" TP Tranche 1 Target:      ${trade.tp1_price:,.2f}")
+    if trade.tp2_price:
+        print(f" TP Tranche 2 Target:      ${trade.tp2_price:,.2f}")
+    print("-" * 80)
+    print(f" Exit Bar Index:           {trade.exit_index}")
+    print(f" Exit Timestamp:           {dt_exit} ({trade.exit_time_ms} ms)")
+    print(f" Exit Fill Price:          ${trade.exit_price:,.2f}" if trade.exit_price else " Exit Fill Price: N/A")
+    print(f" Exit Reason:              {trade.exit_reason}")
+    print(f" Total Fees Paid:          ${trade.fees_usd:,.2f}")
+    print(f" Total Slippage Cost:      ${trade.slippage_usd:,.2f}")
+    print(f" Net Realized PnL:         ${trade.pnl_usd:,.2f} ({trade.r_multiple:+.2f}R)")
+    print("=" * 80)
 
 
 if __name__ == "__main__":

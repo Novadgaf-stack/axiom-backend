@@ -23,6 +23,8 @@ class TechnicalSnapshot:
     adx: float
     bias: str  # "LONG", "SHORT", "NEUTRAL"
     ts: int = 0
+    is_4h_uptrend: bool = True
+    is_4h_trending: bool = True
 
     def to_prompt_dict(self) -> dict:
         return {
@@ -133,18 +135,18 @@ def compute_snapshot(
     volume_ok = volume_ratio >= min_volume_ratio
     adx_ok = last_adx >= min_adx
     bullish = (
-        last_ema_fast > last_ema_slow
-        and last_close > last_ema_50
-        and last_macd > last_macd_signal
-        and 45 <= last_rsi <= 68
+        last_close > last_ema_50
+        and last_ema_fast > last_ema_slow
+        and (last_rsi <= 58 or last_close <= last_ema_fast * 1.003 or last_macd > last_macd_signal)
+        and 38 <= last_rsi <= 68
         and volume_ok
         and adx_ok
     )
     bearish = (
-        last_ema_fast < last_ema_slow
-        and last_close < last_ema_50
-        and last_macd < last_macd_signal
-        and 32 <= last_rsi <= 55
+        last_close < last_ema_50
+        and last_ema_fast < last_ema_slow
+        and (last_rsi >= 42 or last_close >= last_ema_fast * 0.997 or last_macd < last_macd_signal)
+        and 32 <= last_rsi <= 62
         and volume_ok
         and adx_ok
     )
@@ -170,8 +172,51 @@ def compute_snapshot(
     )
 
 
+def compute_4h_regime(df: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Computes 4H macro trend & chop indicators from 1h candles without lookahead leakage.
+    Returns boolean arrays aligned to 1h indices: (is_4h_uptrend, is_4h_trending)
+    """
+    n = len(df)
+    if n == 0 or "ts" not in df.columns:
+        return np.ones(n, dtype=bool), np.ones(n, dtype=bool)
+
+    dt_index = pd.to_datetime(df["ts"], unit="ms", utc=True)
+    df_indexed = df.set_index(dt_index)
+
+    df_4h = df_indexed.resample("4h").agg({
+        "open": "first",
+        "high": "max",
+        "low": "min",
+        "close": "last",
+        "volume": "sum",
+        "ts": "last",
+    }).dropna()
+
+    if len(df_4h) < 55:
+        return np.ones(n, dtype=bool), np.ones(n, dtype=bool)
+
+    ema_50_4h = _ema(df_4h["close"], 50)
+    ema_200_4h = _ema(df_4h["close"], 200)
+    adx_4h = _adx(df_4h, 14)
+
+    uptrend_4h = (df_4h["close"] > ema_50_4h) & (ema_50_4h > ema_200_4h)
+    trending_4h = adx_4h >= 20.0
+
+    # Shift by 1 4H bar to guarantee zero look-ahead bias
+    up_1h = uptrend_4h.shift(1).reindex(dt_index, method="ffill").fillna(False).values
+    tr_1h = trending_4h.shift(1).reindex(dt_index, method="ffill").fillna(False).values
+
+    return up_1h, tr_1h
+
+
 def compute_all_snapshots(
-    df: pd.DataFrame, atr_period: int = 14, min_volume_ratio: float = 0.0, min_adx: float = 20.0
+    df: pd.DataFrame,
+    atr_period: int = 14,
+    min_volume_ratio: float = 0.0,
+    min_adx: float = 20.0,
+    enable_4h_trend_filter: bool = False,
+    enable_4h_chop_filter: bool = False,
 ) -> list[TechnicalSnapshot | None]:
     if len(df) == 0:
         return []
@@ -186,6 +231,7 @@ def compute_all_snapshots(
     macd_signal = _ema(macd_line, 9)
     vol_roll = df["volume"].rolling(20).mean().replace(0, 1e-9)
     volume_ratio = df["volume"] / vol_roll
+    up_4h, tr_4h = compute_4h_regime(df)
 
     min_lookback = max(55, atr_period + 5)
     snapshots: list[TechnicalSnapshot | None] = [None] * len(df)
@@ -214,24 +260,33 @@ def compute_all_snapshots(
         last_macd_signal = float(ms[i])
         last_vr = float(vr[i]) if not np.isnan(vr[i]) else 0.0
         last_ts = int(ts_v[i])
+        is_4h_up = bool(up_4h[i])
+        is_4h_tr = bool(tr_4h[i])
 
         volume_ok = last_vr >= min_volume_ratio
         adx_ok = last_adx >= min_adx
+        up_ok = (not enable_4h_trend_filter) or is_4h_up
+        chop_ok = (not enable_4h_chop_filter) or is_4h_tr
+
         bullish = (
-            last_ef > last_es
-            and last_close > last_e50
-            and last_macd > last_macd_signal
-            and 45 <= last_rsi <= 68
+            last_close > last_e50
+            and last_ef > last_es
+            and (last_rsi <= 58 or last_close <= last_ef * 1.003 or last_macd > last_macd_signal)
+            and 38 <= last_rsi <= 68
             and volume_ok
             and adx_ok
+            and up_ok
+            and chop_ok
         )
         bearish = (
-            last_ef < last_es
-            and last_close < last_e50
-            and last_macd < last_macd_signal
-            and 32 <= last_rsi <= 55
+            last_close < last_e50
+            and last_ef < last_es
+            and (last_rsi >= 42 or last_close >= last_ef * 0.997 or last_macd < last_macd_signal)
+            and 32 <= last_rsi <= 62
             and volume_ok
             and adx_ok
+            and up_ok
+            and chop_ok
         )
         bias = "LONG" if bullish else ("SHORT" if bearish else "NEUTRAL")
 
@@ -248,6 +303,8 @@ def compute_all_snapshots(
             adx=last_adx,
             bias=bias,
             ts=last_ts,
+            is_4h_uptrend=is_4h_up,
+            is_4h_trending=is_4h_tr,
         )
 
     return snapshots

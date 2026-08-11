@@ -12,10 +12,10 @@ model text reaches order placement.
 """
 import json
 from dataclasses import dataclass
-from typing import Literal, Optional
+from typing import Any, Literal, Optional
 
 import aiohttp
-from pydantic import BaseModel, ValidationError, field_validator
+from pydantic import BaseModel, ValidationError, field_validator, model_validator
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 from app.config import settings
@@ -30,44 +30,60 @@ GEMINI_ENDPOINT = (
 RESPONSE_SCHEMA = {
     "type": "OBJECT",
     "properties": {
-        "action": {"type": "STRING", "enum": ["LONG", "SHORT", "HOLD"]},
+        "decision": {"type": "STRING", "enum": ["BUY", "SELL", "HOLD"]},
         "confidence_score": {"type": "INTEGER"},
+        "approved": {"type": "BOOLEAN"},
         "risk_flags": {
             "type": "ARRAY",
             "items": {"type": "STRING"}
         },
         "reasoning": {"type": "STRING"},
     },
-    "required": ["action", "confidence_score", "risk_flags", "reasoning"],
+    "required": ["decision", "confidence_score", "approved", "risk_flags", "reasoning"],
 }
 
-SYSTEM_INSTRUCTION = """You are an institutional-grade quantitative risk manager. Your primary directive is capital preservation. You do not suffer from FOMO. Your default stance on any technical signal is REJECT unless there is overwhelming, multi-factor confluence. 
+SYSTEM_INSTRUCTION = """You are the Chief Risk Officer and Lead Quantitative Analyst for Nexus-7 Trading Engine. 
+Your SOLE PURPOSE is capital preservation and selective profit extraction.
 
-You will be provided with a raw technical trading signal, including current price action, volume metrics, and indicator states (e.g., RSI, MACD, EMAs). 
+DEFAULT ASSUMPTION: THE MARKET IS TRAPPING TRADERS. DO NOT APPROVE TRADES UNLESS EXCEPTIONALLY HIGH CONVICTION.
 
-Your task is to validate or invalidate this signal by passing it through the "Antigravity" evaluation matrix.
+EVALUATION MATRIX:
+1. MACRO TREND ALIGNMENT:
+   - For LONGs: Price MUST be above the 50-EMA and ADX >= 20.0 (Strong Trend).
+   - Reject any counter-trend momentum signals.
 
-### PHASE 1: THE ANTIGRAVITY MATRIX (THINKING PROCESS)
-Before outputting your final decision, evaluate the following constraints:
-1. Trend Alignment (The Gravity Check): Is this signal fighting the macro trend? If the higher timeframe trend is counter to the signal, apply a severe penalty.
-2. Volume Validation (The Fuel Check): A breakout without volume is a trap. Is the current candle's volume significantly higher than the rolling average? If volume is flat or declining, reject the trade.
-3. Market Structure (The Trap Check): Is price trapped inside a tight range or chop zone? Do not authorize trades in low-volatility consolidation zones unless it is a confirmed breakout with momentum.
-4. Mean Reversion Risk: Is the asset overextended? If RSI is overbought (> 75 for LONG) or oversold (< 25 for SHORT) and price is far from key moving averages, reject it as a late entry.
+2. MOMENTUM & OVEREXTENSION:
+   - Reject RSI > 68 for LONGs (Buying the top/exhaustion).
+   - Reject RSI < 32 for SHORTs (Selling the bottom).
 
-### PHASE 2: SCORING PROTOCOL
-Score the setup from 0 to 100 based on the Matrix above.
-* 0 - 65: Garbage setup. Ranging market, counter-trend, or low volume. Set action="HOLD".
-* 66 - 84: Mediocre setup. Lacks full confluence. Set action="HOLD".
-* 85 - 100: "A+" Setup. Perfect alignment of trend, momentum, and volume. Set action="LONG" or "SHORT" matching the valid signal direction.
+3. RISK-TO-REWARD & LIQUIDITY:
+   - Minimum acceptable R:R ratio is 1:1.67 (Stop Loss: 1.5 ATR / Take Profit: 2.5 ATR).
+   - Verify volume ratio >= 0.8. Reject low-volume breakouts.
 
-### PHASE 3: STRICT JSON OUTPUT
-Respond ONLY with a valid, parseable JSON object adhering to the schema. Do not include markdown formatting, conversational text, or explanations outside the JSON structure.
+DECISION PROTOCOL:
+- If ANY risk flag is present (e.g. low ADX, overextended RSI, bad R:R, market chop), output "reject" = true or assign a confidence score below 88.
+- Assign confidence_score as follows:
+  * < 85: Toxic setup / Chop (REJECT)
+  * 85 - 87: Mediocre setup / Low volume (REJECT)
+  * 88 - 92: Valid setup, strong trend, good volume (APPROVE - Standard Risk 1.0%)
+  * 93 - 95: High-conviction setup, volume surge (APPROVE - Medium Risk 1.5%)
+  * > 95: A+ Institutional Breakout (APPROVE - High Risk 2.0%)
+
+OUTPUT SCHEMA (STRICT JSON ONLY):
+{
+  "decision": "BUY" | "SELL" | "HOLD",
+  "confidence_score": integer (0 to 100),
+  "approved": boolean,
+  "risk_flags": [list of detected warnings/reasons],
+  "reasoning": "Concise 1-2 sentence justification focusing on market structure and risk."
+}
 """
 
 
 class GeminiDecision(BaseModel):
-    action: Literal["LONG", "SHORT", "HOLD"]
+    decision: Literal["BUY", "SELL", "HOLD"]
     confidence_score: int
+    approved: bool
     risk_flags: list[str] = []
     reasoning: str
 
@@ -77,6 +93,36 @@ class GeminiDecision(BaseModel):
         if v < 0 or v > 100:
             raise ValueError("confidence_score out of range")
         return v
+
+    @property
+    def action(self) -> str:
+        """Compatibility property mapping BUY -> LONG, SELL -> SHORT, HOLD -> HOLD."""
+        if self.decision == "BUY":
+            return "LONG"
+        elif self.decision == "SELL":
+            return "SHORT"
+        return "HOLD"
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_input(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            # Handle legacy 'action' key if passed instead of 'decision'
+            if "decision" not in data and "action" in data:
+                act = data.get("action")
+                if act == "LONG":
+                    data["decision"] = "BUY"
+                elif act == "SHORT":
+                    data["decision"] = "SELL"
+                else:
+                    data["decision"] = "HOLD"
+            # Auto-populate 'approved' if missing
+            if "approved" not in data:
+                conf = data.get("confidence_score", 0)
+                dec = data.get("decision", "HOLD")
+                min_conf = getattr(settings, "min_confidence_score", 88)
+                data["approved"] = (conf >= min_conf and dec in ("BUY", "SELL"))
+        return data
 
 
 @dataclass
@@ -98,6 +144,8 @@ def _build_prompt(symbol: str, technical: dict, order_book_summary: dict) -> str
     vol_ratio = technical.get("volume_ratio_vs_avg", "N/A")
     ema_50 = technical.get("ema_50", "N/A")
     ema_200 = technical.get("ema_200", "N/A")
+    adx_val = technical.get("adx", "N/A")
+    atr_val = technical.get("atr", "N/A")
 
     payload = {
         "symbol": symbol,
@@ -109,16 +157,18 @@ def _build_prompt(symbol: str, technical: dict, order_book_summary: dict) -> str
 
     return (
         f"EVALUATE THIS SIGNAL FOR {symbol}:\n"
-        f"- Signal Direction: {trade_direction} (LONG/SHORT/NEUTRAL)\n"
+        f"- Signal Direction: {trade_direction} (BUY/SELL/HOLD or LONG/SHORT/NEUTRAL)\n"
         f"- Current Price: {current_price}\n"
         f"- 50-EMA: {ema_50}\n"
         f"- 200-EMA (Macro Trend): {ema_200}\n"
+        f"- ADX: {adx_val}\n"
         f"- Volume Ratio vs Avg: {vol_ratio}\n"
         f"- RSI (14): {rsi_value}\n"
-        f"- MACD: {macd_val}\n\n"
+        f"- MACD: {macd_val}\n"
+        f"- ATR: {atr_val}\n\n"
         f"Detailed Technical & Order Book Snapshot (JSON):\n"
         f"{json.dumps(payload, indent=2)}\n\n"
-        "Pass this signal through the Antigravity Evaluation Matrix and return your JSON assessment."
+        "Pass this signal through the Institutional Evaluation Matrix and return your JSON assessment."
     )
 
 
@@ -128,10 +178,10 @@ class RetryableGeminiError(Exception):
 
 class AIAnalyst:
     def __init__(self):
-        if not settings.gemini_api_key:
-            raise RuntimeError("GEMINI_API_KEY must be set.")
-        self.api_key = settings.gemini_api_key
-        self.model = settings.gemini_model
+        self.api_key = getattr(settings, "GEMINI_API_KEY", getattr(settings, "gemini_api_key", ""))
+        self.model = getattr(settings, "gemini_model", "gemini-2.0-flash")
+        if not self.api_key or not self.api_key.strip():
+            logger.error("CRITICAL: GEMINI_API_KEY missing! Live AI analysis disabled.")
 
     @retry(
         retry=retry_if_exception_type(RetryableGeminiError),
@@ -140,6 +190,8 @@ class AIAnalyst:
         reraise=True,
     )
     async def _call_gemini(self, prompt: str) -> str:
+        if not self.api_key or not self.api_key.strip():
+            raise RuntimeError("CRITICAL: GEMINI_API_KEY missing! Live AI analysis disabled.")
         url = GEMINI_ENDPOINT.format(model=self.model)
         body = {
             "system_instruction": {"parts": [{"text": SYSTEM_INSTRUCTION}]},
@@ -166,6 +218,20 @@ class AIAnalyst:
                 raise RetryableGeminiError(str(e)) from e
 
     async def analyze(self, symbol: str, technical: dict, order_book_summary: dict) -> AnalystResult:
+        if not self.api_key or not self.api_key.strip():
+            logger.error("CRITICAL: GEMINI_API_KEY missing! Live AI analysis disabled.")
+            return AnalystResult(
+                decision=GeminiDecision(
+                    decision="HOLD",
+                    confidence_score=0,
+                    approved=False,
+                    risk_flags=["GEMINI_API_KEY missing"],
+                    reasoning="CRITICAL: GEMINI_API_KEY missing! Live AI analysis disabled.",
+                ),
+                raw_text="",
+                error="CRITICAL: GEMINI_API_KEY missing! Live AI analysis disabled.",
+            )
+
         prompt = _build_prompt(symbol, technical, order_book_summary)
         try:
             raw_response = await self._call_gemini(prompt)
