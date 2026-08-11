@@ -55,9 +55,8 @@ def require_auth(
 
 @router.get("/")
 @router.get("/api")
-@router.get("/health")
-async def health():
-    """Unauthenticated liveness check for Render's health checker / load balancer / root fetches."""
+async def root_info():
+    """Unauthenticated root info endpoint for API metadata and browser checks."""
     eq = state.last_equity_usd if state.last_equity_usd is not None else 10000.0
     return {
         "status": "ok",
@@ -67,6 +66,12 @@ async def health():
         "equity": eq,
         "timestamp": datetime.now(timezone.utc).isoformat()
     }
+
+
+@router.get("/health")
+async def health():
+    """Unauthenticated liveness check for Render's health checker / load balancer."""
+    return {"status": "ok"}
 
 
 @router.get("/api/status", dependencies=[Depends(require_auth)])

@@ -8,3 +8,7 @@ backtest_results/*
 !backtest_results/.gitkeep
 data/historical/*
 !data/historical/.gitkeep
+logs/
+testnet_incidents.jsonl
+*.csv
+
