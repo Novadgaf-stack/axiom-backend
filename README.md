@@ -54,6 +54,13 @@ Worker** (no HTTP) and run `api.py` as its own Web Service, with both reading
 shared state from Postgres/Redis instead of the in-memory `state.py`. Not
 needed for one engine instance.
 
+### 24/7 Continuous Operation & Render Free Tier
+
+- **Internal Keep-Alive**: `app/main.py` runs an automatic background keep-alive task that executes a heartbeat every 4 minutes to keep the event loop warm and active.
+- **Render Free Tier Spin-Down Prevention**: Render automatically puts free Web Services to sleep after **15 minutes of HTTP inactivity**. To ensure continuous 24/7 trading on Render free tier, configure a free external uptime monitor (such as [UptimeRobot](https://uptimerobot.com) or [Cron-job.org](https://cron-job.org)) to perform an HTTP GET on `https://<your-render-app>.onrender.com/health` every 5 minutes.
+- **Monitoring Health**: Access `/health` or `/api/status` to view real-time diagnostics (`engine_task_alive`, `keep_alive_active`, `trading_active`, `halt_reason`, `config_problems`).
+
+
 ## Safety model (read this before enabling live orders)
 
 1. **Dual confirmation required.** A trade only executes if the quantitative

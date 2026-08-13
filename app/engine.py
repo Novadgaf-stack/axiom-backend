@@ -45,11 +45,20 @@ class TradingEngine:
         self._pause_event.clear()
 
     def halt(self, reason: str):
-        """Emergency stop: distinct from pause — requires a code deploy / restart to clear."""
+        """Emergency stop: distinct from pause — requires a code deploy / restart or explicit reset to clear."""
         self._pause_event.set()
         state.halt_reason = reason
         state.status = EngineStatus.HALTED
         logger.critical(f"ENGINE HALTED: {reason}")
+
+    def reset_halt(self):
+        """Clears emergency halt and resumes trading engine operations."""
+        state.halt_reason = None
+        state.last_error = None
+        self._pause_event.clear()
+        state.status = EngineStatus.RUNNING
+        logger.info("ENGINE HALT CLEARED AND RESUMED via reset_halt.")
+
 
     async def _get_usdt_equity(self) -> float:
         try:

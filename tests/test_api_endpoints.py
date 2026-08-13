@@ -18,7 +18,10 @@ class TestApiEndpoints(unittest.TestCase):
     def test_health(self):
         res = self.client.get("/health")
         self.assertEqual(res.status_code, 200)
-        self.assertEqual(res.json(), {"status": "ok"})
+        data = res.json()
+        self.assertEqual(data.get("status"), "ok")
+        self.assertIn("engine_task_alive", data)
+
 
     def test_auth_failure(self):
         res = self.client.get("/api/status")

@@ -5,7 +5,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from datetime import datetime, timezone
 
 from app.config import settings
-from app.state import state
+from app.state import state, OpenPosition, EngineStatus
 from app.db import db
 from app import engine_registry
 
@@ -94,7 +94,12 @@ async def root_info():
 @router.get("/health")
 async def health():
     """Unauthenticated liveness check for Render's health checker / load balancer."""
-    return {"status": "ok"}
+    return {
+        "status": "ok",
+        "engine_task_alive": engine_registry.is_engine_task_alive(),
+        "keep_alive_active": engine_registry.is_keep_alive_active(),
+        "config_problems": engine_registry.config_problems,
+    }
 
 
 @router.get("/api/status", dependencies=[Depends(require_auth)])
@@ -110,13 +115,25 @@ async def get_status():
     pos_dict = {sym: _format_position(pos) for sym, pos in state.open_positions.items()}
     pos_list = list(pos_dict.values())
 
+    engine_alive = engine_registry.is_engine_task_alive()
+    trading_active = (
+        state.status.value == "running"
+        and settings.trading_enabled
+        and not state.halt_reason
+        and engine_alive
+    )
+
     return {
         "status": state.status.value,
+        "engine_task_alive": engine_alive,
+        "keep_alive_active": engine_registry.is_keep_alive_active(),
+        "trading_active": trading_active,
         "started_at": state.started_at,
         "last_cycle_at": state.last_cycle_at,
         "cycles_completed": state.cycles_completed,
         "last_error": state.last_error,
         "halt_reason": state.halt_reason,
+        "config_problems": engine_registry.config_problems,
         "last_equity_usd": eq,
         "last_equity": eq,
         "equity": eq,
@@ -217,14 +234,17 @@ async def pause_engine(engine=Depends(require_engine)):
 
 
 @router.post("/api/engine/resume", dependencies=[Depends(require_auth)])
-async def resume_engine(engine=Depends(require_engine)):
+async def resume_engine(force: bool = False, engine=Depends(require_engine)):
     if state.halt_reason:
-        raise HTTPException(
-            status_code=409,
-            detail=f"Engine is HALTED ({state.halt_reason}). Resolve the issue and restart the service to clear a halt.",
-        )
-    engine.resume()
-    return {"status": "resumed"}
+        if not force:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Engine is HALTED ({state.halt_reason}). Pass force=true or call /api/emergency/reset to override.",
+            )
+        engine.reset_halt()
+    else:
+        engine.resume()
+    return {"status": "resumed", "halt_reason": state.halt_reason}
 
 
 @router.post("/api/engine/kill-switch", dependencies=[Depends(require_auth)])
@@ -235,7 +255,6 @@ async def kill_switch(engine=Depends(require_engine)):
 
 @router.post("/api/engine/trigger-trade", dependencies=[Depends(require_auth)])
 async def trigger_trade(symbol: str = "BTC/USDT", side: str = "LONG"):
-    from app.state import OpenPosition
     eng = require_engine()
     equity = await eng._get_usdt_equity()
     
@@ -294,6 +313,8 @@ async def trigger_trade(symbol: str = "BTC/USDT", side: str = "LONG"):
 @router.post("/api/emergency/stop", dependencies=[Depends(require_auth)])
 async def emergency_stop(reason: str = "API Emergency Kill Switch Triggered"):
     """Emergency Kill Switch endpoint: halts new entries, cancels orders, enters HALTED state."""
+    if engine_registry.engine:
+        engine_registry.engine.halt(reason)
     from app.state_machine import TradingStateMachine, EngineState
     from app.kill_switch import EmergencyKillSwitch
     sm = TradingStateMachine(initial_state=EngineState.TRADING)
@@ -304,7 +325,9 @@ async def emergency_stop(reason: str = "API Emergency Kill Switch Triggered"):
 
 @router.post("/api/emergency/reset", dependencies=[Depends(require_auth)])
 async def emergency_reset(operator: str = "api_operator"):
-    """Manual reset endpoint: clears emergency halt and moves engine to HEALTH_CHECK."""
+    """Manual reset endpoint: clears emergency halt and resumes engine operation."""
+    if engine_registry.engine:
+        engine_registry.engine.reset_halt()
     from app.state_machine import TradingStateMachine, EngineState
     from app.kill_switch import EmergencyKillSwitch
     sm = TradingStateMachine(initial_state=EngineState.HALTED)
