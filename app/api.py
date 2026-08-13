@@ -76,8 +76,8 @@ def _format_position(pos: OpenPosition) -> dict:
     return raw
 
 
-@router.get("/")
-@router.get("/api")
+@router.api_route("/", methods=["GET", "HEAD"])
+@router.api_route("/api", methods=["GET", "HEAD"])
 async def root_info():
     """Unauthenticated root info endpoint for API metadata and browser checks."""
     eq = state.last_equity_usd if state.last_equity_usd is not None else 10000.0
@@ -91,9 +91,9 @@ async def root_info():
     }
 
 
-@router.get("/health")
+@router.api_route("/health", methods=["GET", "HEAD"])
 async def health():
-    """Unauthenticated liveness check for Render's health checker / load balancer."""
+    """Unauthenticated liveness check for Render's health checker / load balancer / UptimeRobot."""
     return {
         "status": "ok",
         "engine_task_alive": engine_registry.is_engine_task_alive(),
