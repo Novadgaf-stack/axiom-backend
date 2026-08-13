@@ -245,6 +245,8 @@ def main():
     parser.add_argument("--run-research-v8", action="store_true", help="Run Research V8 Microstructure & Portfolio Alpha Engine (Volume Delta, CVD, BTC/ETH pair spread reversion evaluated against V5 Promotion Gate).")
     parser.add_argument("--run-research-v9", action="store_true", help="Run Research V9 Microstructure Data Quality & Live Execution Parity Audit (10-point audit across data quality, engine parity, and portfolio risk integration).")
     parser.add_argument("--run-research-v10", action="store_true", help="Run Research V10 Real Market Data & Portfolio Drawdown Guard Engine (Real CCXT trade ticks, L2 order book depth, and hard 15%% drawdown circuit breaker).")
+    parser.add_argument("--run-research-v11", action="store_true", help="Run Research V11 Order Book Feature Transformer & Leakage Auditor Engine (Mathematical order book features and zero data leakage audit).")
+
 
 
 
@@ -432,6 +434,15 @@ def main():
         print("=" * 80)
         res = run_full_research_v10_pipeline("./data/historical", "research_v10_real_data_and_drawdown_report.md")
         return
+
+    if args.run_research_v11:
+        from backtest.research_v11.pipeline import run_full_research_v11_pipeline
+        print("\n" + "=" * 80)
+        print("RUNNING NEXUS-7 RESEARCH V11 ORDER BOOK FEATURE TRANSFORMER & LEAKAGE AUDITOR ENGINE...")
+        print("=" * 80)
+        res = run_full_research_v11_pipeline("./data/historical", "research_v11_true_order_book_alpha_report.md")
+        return
+
 
 
 

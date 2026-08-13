@@ -45,6 +45,8 @@ def _summarize_order_book(order_book: dict) -> dict:
     best_ask = asks[0][0] if asks else None
     spread = (best_ask - best_bid) if (best_bid and best_ask) else None
     imbalance = (bid_volume - ask_volume) / (bid_volume + ask_volume) if (bid_volume + ask_volume) > 0 else 0
+    from backtest.research_v11.order_book_features import OrderBookFeatureTransformer
+    ob_features = OrderBookFeatureTransformer.generate_order_book_features([], order_book)
     return {
         "best_bid": best_bid,
         "best_ask": best_ask,
@@ -52,7 +54,12 @@ def _summarize_order_book(order_book: dict) -> dict:
         "top10_bid_volume": round(bid_volume, 4),
         "top10_ask_volume": round(ask_volume, 4),
         "order_book_imbalance": round(imbalance, 4),  # +1 = all bids, -1 = all asks
+        "l2_imbalance": ob_features["l2_imbalance"],
+        "spread_pressure": ob_features["spread_pressure"],
+        "signal_bias": ob_features["signal_bias"],
+        "classification": ob_features["classification"],
     }
+
 
 
 class StrategyEngine:
