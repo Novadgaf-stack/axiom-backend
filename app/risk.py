@@ -42,6 +42,12 @@ class RiskManager:
         self._daily_date: str | None = None
         self._daily_realized_pnl: float = 0.0
         self._cooldown_until: dict[str, datetime] = {}
+        from backtest.research_v10.drawdown_guard import PortfolioDrawdownGuard
+        self.drawdown_guard = PortfolioDrawdownGuard(max_portfolio_dd_pct=15.0)
+
+    def check_portfolio_drawdown(self, current_equity: float) -> bool:
+        return self.drawdown_guard.is_circuit_breaker_triggered(current_equity)
+
 
     def mark_loss(self, symbol: str, now: datetime = None):
         """Start a cooldown window after a losing trade closes, so the bot

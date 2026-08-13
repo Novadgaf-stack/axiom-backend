@@ -244,6 +244,9 @@ def main():
     parser.add_argument("--run-research-v7", action="store_true", help="Run Research V7 MTF-TP Deep Robustness & Attribution Audit (10-step robustness, parameter perturbation grid, asset separation, cost stress).")
     parser.add_argument("--run-research-v8", action="store_true", help="Run Research V8 Microstructure & Portfolio Alpha Engine (Volume Delta, CVD, BTC/ETH pair spread reversion evaluated against V5 Promotion Gate).")
     parser.add_argument("--run-research-v9", action="store_true", help="Run Research V9 Microstructure Data Quality & Live Execution Parity Audit (10-point audit across data quality, engine parity, and portfolio risk integration).")
+    parser.add_argument("--run-research-v10", action="store_true", help="Run Research V10 Real Market Data & Portfolio Drawdown Guard Engine (Real CCXT trade ticks, L2 order book depth, and hard 15%% drawdown circuit breaker).")
+
+
 
 
 
@@ -421,6 +424,15 @@ def main():
         print("=" * 80)
         res = run_full_research_v9_pipeline("./data/historical", "research_v9_data_and_parity_audit.md")
         return
+
+    if args.run_research_v10:
+        from backtest.research_v10.pipeline import run_full_research_v10_pipeline
+        print("\n" + "=" * 80)
+        print("RUNNING NEXUS-7 RESEARCH V10 REAL MARKET DATA & PORTFOLIO DRAWDOWN GUARD ENGINE...")
+        print("=" * 80)
+        res = run_full_research_v10_pipeline("./data/historical", "research_v10_real_data_and_drawdown_report.md")
+        return
+
 
 
 
