@@ -60,6 +60,16 @@ needed for one engine instance.
 - **Render Free Tier Spin-Down Prevention**: Render automatically puts free Web Services to sleep after **15 minutes of HTTP inactivity**. To ensure continuous 24/7 trading on Render free tier, configure a free external uptime monitor (such as [UptimeRobot](https://uptimerobot.com) or [Cron-job.org](https://cron-job.org)) to perform an HTTP GET on `https://<your-render-app>.onrender.com/health` every 5 minutes.
 - **Monitoring Health**: Access `/health` or `/api/status` to view real-time diagnostics (`engine_task_alive`, `keep_alive_active`, `trading_active`, `halt_reason`, `config_problems`).
 
+## Superteam Grant Extension — Solana Devnet Agent Layer (`solana_agent/`)
+
+Nexus-7 includes an isolated, non-custodial **Solana Devnet Agent Layer** built for the Superteam Agentic Engineering Grant ($200 USDG).
+
+- **Decoupled Architecture**: Located under `solana_agent/`. Nexus-7 core (`app/engine.py`, `app/risk.py`, `app/strategy.py`) remains 100% frozen and untouched.
+- **Deterministic Policy Gate**: Evaluates signals against max SOL notional limits (0.1 SOL/tx) and rate caps before signing.
+- **Pre-Flight Simulation**: Executes `simulateTransaction` on Solana Devnet RPC before any signing occurs.
+- **Non-Custodial Devnet Signer**: Signs and broadcasts Devnet transactions (SPL token swaps / Memo state commitments). Private keys reside exclusively in environment variables and are never sent to AI models or prompt contexts.
+
+
 
 ## Safety model (read this before enabling live orders)
 

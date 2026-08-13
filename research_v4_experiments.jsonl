@@ -1,0 +1,1 @@
+{"timestamp": 1786611539.932349, "experiment_name": "V4_Multi_Hypothesis_Ensemble", "hypothesis_name": "Ensemble_Regime_Aware", "parameters": {"fee_pct": 0.1, "slippage_pct": 0.05, "n_windows": 4}, "results": {"is_net_pnl": -1025.75, "oos_net_pnl": 0.0, "pbo_pct": 75.0}, "hash": "3aa17b620a4a9f97"}

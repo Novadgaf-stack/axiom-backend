@@ -121,6 +121,13 @@ app.add_middleware(
 
 app.include_router(api_router)
 
+try:
+    from solana_agent.router import router as solana_router
+    app.include_router(solana_router)
+except Exception as e:
+    logger.warning(f"Solana agent router initialization warning: {e}")
+
+
 
 if __name__ == "__main__":
     import uvicorn
