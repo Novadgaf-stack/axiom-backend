@@ -241,6 +241,8 @@ def main():
     parser.add_argument("--run-research-v4", action="store_true", help="Run Research V4 Competition-Grade Strategy Engine (Multi-hypothesis ensemble, regime classifier, walk-forward, PBO, Buy-and-Hold benchmark).")
     parser.add_argument("--run-research-v5", action="store_true", help="Run Research V5 Alpha Selection & Verification Framework (Triple-barrier labeling, MTF, Binance microstructure, Purged CV, Ablation, DSR, 7-stage promotion gate).")
     parser.add_argument("--run-research-v6", action="store_true", help="Run Research V6 Structural Alpha Discovery Engine (4 non-ML structural hypotheses evaluated against V5 Promotion Gate).")
+    parser.add_argument("--run-research-v7", action="store_true", help="Run Research V7 MTF-TP Deep Robustness & Attribution Audit (10-step robustness, parameter perturbation grid, asset separation, cost stress).")
+
 
     parser.add_argument("--run-testnet-certification", action="store_true", help="Run Testnet Operations & Chaos Certification evaluator (Phases 1-4, failure injections, and testnet_certification_report.md).")
 
@@ -391,6 +393,15 @@ def main():
         print("=" * 80)
         res = run_full_research_v6_pipeline("./data/historical", "research_v6_report.md")
         return
+
+    if args.run_research_v7:
+        from backtest.research_v7.pipeline import run_full_research_v7_pipeline
+        print("\n" + "=" * 80)
+        print("RUNNING NEXUS-7 RESEARCH V7 MTF-TP DEEP ROBUSTNESS & ATTRIBUTION AUDIT...")
+        print("=" * 80)
+        res = run_full_research_v7_pipeline("./data/historical", "research_v7_mtf_tp_report.md")
+        return
+
 
 
 
