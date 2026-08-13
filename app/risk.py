@@ -94,7 +94,9 @@ class RiskManager:
             self._daily_date = today
             self._daily_start_equity = current_equity
             self._daily_realized_pnl = 0.0
+            self.drawdown_guard.reset_daily_peak(current_equity)
             logger.info(f"Daily risk window reset. Start-of-day equity: {current_equity:.2f} USDT")
+
 
     def record_realized_pnl(self, pnl_usd: float):
         self._daily_realized_pnl += pnl_usd
