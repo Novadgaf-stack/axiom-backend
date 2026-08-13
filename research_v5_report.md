@@ -1,7 +1,7 @@
 # NEXUS-7 — ALPHA SELECTION & VERIFICATION REPORT (V5)
 
-**Report Generated:** 2026-08-13 09:11:05 UTC  
-**Pipeline Evaluation Duration:** 0.22s  
+**Report Generated:** 2026-08-13 09:18:13 UTC  
+**Pipeline Evaluation Duration:** 4.98s  
 **PROMOTION GATE VERDICT:** `REJECTED (NO EDGE PROVEN)`  
 **DEFLATED SHARPE RATIO (DSR):** `0.0%` (REJECTED (Sharpe <= 0))  
 **LIVE REAL-MONEY TRADING:** `STRICTLY LOCKED / BLOCKED`
@@ -17,7 +17,7 @@
 | **Stage 3: WALK-FORWARD CONSISTENCY** | **FAIL** | ❌ FAIL | 25.0% Profitable Windows (Target >= 75%) |
 | **Stage 4: PURGED OOS HOLDOUT** | **FAIL** | ❌ FAIL | OOS PnL $0.00, OOS PF 0.00 (Target >= 1.15) |
 | **Stage 5: PBO / MULTIPLE-TESTING AUDIT** | **FAIL** | ❌ FAIL | PBO 75.0% (Target < 25%), DSR Prob 0.0% (Target >= 95%) |
-| **Stage 6: FEE + SLIPPAGE STRESS** | **FAIL** | ❌ FAIL | Stress Expectancy $-15.25/trade under 0.10% fee + 0.05% slippage |
+| **Stage 6: FEE + SLIPPAGE STRESS** | **FAIL** | ❌ FAIL | Stress Expectancy $-100.93/trade under 0.10% fee + 0.05% slippage |
 | **Stage 7: PROMOTION VERDICT** | **STRICTLY LOCKED** | ⚠️ STRICTLY LOCKED | LIVE REAL-MONEY TRADING REMAINS PERMANENTLY LOCKED |
 
 ---
@@ -32,15 +32,15 @@
 
 ---
 
-## 3. Ablation Study & Feature Sensitivity Breakdown
+## 3. Ablation Study & Feature Sensitivity Breakdown (Canonical Trade Ledger)
 
-| Component Step | Trades Evaluated | Win Rate | Expectancy / Trade | Net PnL | Recommendation |
-| :--- | :---: | :---: | :---: | :---: | :---: |
-| **Baseline Signal** | 1812 | 50.3% | $0.69 | $1,252.96 | ✅ RETAIN |
-| **+ Regime Filter** | 1800 | 50.4% | $0.81 | $1,452.44 | ✅ RETAIN |
-| **+ Volume Imbalance** | 803 | 50.2% | $0.01 | $5.15 | ❌ DISCARD |
-| **+ MTF 4H Macro Bias** | 631 | 50.2% | $0.82 | $518.22 | ✅ RETAIN |
-| **+ Volatility Squeeze** | 6 | 83.3% | $27.30 | $163.79 | ✅ RETAIN |
+| Component Step | Trades Evaluated | Win Rate | Expectancy / Trade | Net PnL | Profit Factor | Recommendation |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Baseline Consensus** | 1 | 0.0% | $-100.93 | $-100.93 | 0.00 | ✅ RETAIN |
+| **+ Regime Filter** | 1 | 0.0% | $-100.93 | $-100.93 | 0.00 | ❌ DISCARD |
+| **+ Volume Imbalance** | 0 | N/A | $0.00 | $0.00 | N/A | ✅ RETAIN |
+| **+ MTF 4H Macro Bias** | 0 | N/A | $0.00 | $0.00 | N/A | ❌ DISCARD |
+| **+ Volatility Squeeze** | 0 | N/A | $0.00 | $0.00 | N/A | ❌ DISCARD |
 
 ---
 

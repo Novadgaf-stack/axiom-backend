@@ -53,9 +53,10 @@ class TestResearchV5Framework(unittest.TestCase):
     def test_ablation_auditor(self):
         feats = MultiTimeframeFeatureEngine.compute_features(self.prices, self.high, self.low, self.volume)
         friction = BinanceMicrostructureFrictionModel()
-        res = AblationAuditor.run_ablation_study(self.prices, feats, friction)
+        res = AblationAuditor.run_ablation_study(self.prices, self.high, self.low, self.volume, feats, friction)
         self.assertEqual(len(res), 5)
         self.assertIn("step_name", res[0])
+
 
     def test_deflated_sharpe(self):
         dsr = DeflatedSharpeAuditor.calculate_dsr(observed_sharpe=-0.5, num_trials=20)
