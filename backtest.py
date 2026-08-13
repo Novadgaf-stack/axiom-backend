@@ -238,7 +238,9 @@ def main():
     parser.add_argument("--run-strategy-research", action="store_true", help="Run multi-asset, multi-family strategy research suite (EXP-001 through EXP-006, PBO, walk-forward, controls, and 11 deliverables).")
     parser.add_argument("--run-research-v2", action="store_true", help="Run Research Reset V2 laboratory (Phase 0 engine audit, Phase 1-12 multi-asset candidate suite, and 14 deliverables).")
     parser.add_argument("--run-research-v3", action="store_true", help="Run Research V3 Alpha Discovery framework (7 independent hypotheses, 3-tier cost stress, multi-window walk-forward, and 11 deliverables).")
+    parser.add_argument("--run-research-v4", action="store_true", help="Run Research V4 Competition-Grade Strategy Engine (Multi-hypothesis ensemble, regime classifier, walk-forward, PBO, Buy-and-Hold benchmark).")
     parser.add_argument("--run-testnet-certification", action="store_true", help="Run Testnet Operations & Chaos Certification evaluator (Phases 1-4, failure injections, and testnet_certification_report.md).")
+
     parser.add_argument("--run-testnet-soak", action="store_true", help="Run 24h Real Testnet Operational Validation & Soak certifier (Phases 1-12, all 6 artifacts).")
     parser.add_argument("--soak-hours", type=float, default=24.0, help="Target soak hours for operational validation report (default 24.0).")
 
@@ -357,10 +359,19 @@ def main():
     if args.run_research_v3:
         from backtest.research_v3.pipeline import run_full_research_v3_pipeline
         print("\n" + "=" * 80)
-        print("RUNNING NEXUS-7 QUANT RESEARCH V3: ALPHA DISCOVERY LABORATORY...")
+        print("RUNNING NEXUS-7 RESEARCH V3 ALPHA DISCOVERY FRAMEWORK...")
         print("=" * 80)
         res = run_full_research_v3_pipeline("./data/historical", settings_obj, "./research_v3")
         return
+
+    if args.run_research_v4:
+        from backtest.research_v4.pipeline import run_full_research_v4_pipeline
+        print("\n" + "=" * 80)
+        print("RUNNING NEXUS-7 RESEARCH V4 COMPETITION-GRADE STRATEGY ENGINE...")
+        print("=" * 80)
+        res = run_full_research_v4_pipeline("./data/historical", "research_v4_report.md")
+        return
+
 
     if args.run_testnet_certification:
         from testnet_certifier import run_testnet_operational_certification
