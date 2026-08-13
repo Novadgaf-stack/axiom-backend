@@ -243,6 +243,8 @@ def main():
     parser.add_argument("--run-research-v6", action="store_true", help="Run Research V6 Structural Alpha Discovery Engine (4 non-ML structural hypotheses evaluated against V5 Promotion Gate).")
     parser.add_argument("--run-research-v7", action="store_true", help="Run Research V7 MTF-TP Deep Robustness & Attribution Audit (10-step robustness, parameter perturbation grid, asset separation, cost stress).")
     parser.add_argument("--run-research-v8", action="store_true", help="Run Research V8 Microstructure & Portfolio Alpha Engine (Volume Delta, CVD, BTC/ETH pair spread reversion evaluated against V5 Promotion Gate).")
+    parser.add_argument("--run-research-v9", action="store_true", help="Run Research V9 Microstructure Data Quality & Live Execution Parity Audit (10-point audit across data quality, engine parity, and portfolio risk integration).")
+
 
 
 
@@ -411,6 +413,15 @@ def main():
         print("=" * 80)
         res = run_full_research_v8_pipeline("./data/historical", "research_v8_report.md")
         return
+
+    if args.run_research_v9:
+        from backtest.research_v9.pipeline import run_full_research_v9_pipeline
+        print("\n" + "=" * 80)
+        print("RUNNING NEXUS-7 RESEARCH V9 MICROSTRUCTURE DATA QUALITY & LIVE PARITY AUDIT...")
+        print("=" * 80)
+        res = run_full_research_v9_pipeline("./data/historical", "research_v9_data_and_parity_audit.md")
+        return
+
 
 
 
