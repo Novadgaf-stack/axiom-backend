@@ -9,7 +9,9 @@ between invocations, which would silently stop the trading loop.
 Run locally:      uvicorn app.main:app --reload
 Run in production: uvicorn app.main:app --host 0.0.0.0 --port $PORT
 """
+from __future__ import annotations
 import asyncio
+
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, APIRouter

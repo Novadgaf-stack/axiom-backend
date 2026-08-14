@@ -3,7 +3,9 @@ Risk management. Nothing in here is optional or bypassable by the AI layer —
 these are hard quantitative rules applied after a decision has already
 passed the AI + technical confirmation gate in strategy.py.
 """
+from __future__ import annotations
 from dataclasses import dataclass
+
 from datetime import datetime, timezone, timedelta
 
 from app.config import settings
@@ -42,8 +44,9 @@ class RiskManager:
         self._daily_date: str | None = None
         self._daily_realized_pnl: float = 0.0
         self._cooldown_until: dict[str, datetime] = {}
-        from backtest.research_v10.drawdown_guard import PortfolioDrawdownGuard
+        from app.drawdown_guard import PortfolioDrawdownGuard
         self.drawdown_guard = PortfolioDrawdownGuard(max_portfolio_dd_pct=15.0)
+
 
     def check_portfolio_drawdown(self, current_equity: float) -> bool:
         return self.drawdown_guard.is_circuit_breaker_triggered(current_equity)
@@ -219,9 +222,13 @@ class RiskManager:
             
         if self.daily_loss_limit_hit(available_equity_usd):
             return False, "DAILY_LOSS_LIMIT_REACHED", None
-            
+
+        if self.check_portfolio_drawdown(available_equity_usd):
+            return False, "PORTFOLIO_DRAWDOWN_LIMIT_REACHED", None
+
         if self.in_cooldown(symbol):
             return False, f"COOLDOWN_ACTIVE_FOR_{symbol}", None
+
             
         plan = self.build_trade_plan(
             symbol=symbol,

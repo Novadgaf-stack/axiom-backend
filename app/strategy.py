@@ -45,8 +45,9 @@ def _summarize_order_book(order_book: dict) -> dict:
     best_ask = asks[0][0] if asks else None
     spread = (best_ask - best_bid) if (best_bid and best_ask) else None
     imbalance = (bid_volume - ask_volume) / (bid_volume + ask_volume) if (bid_volume + ask_volume) > 0 else 0
-    from backtest.research_v11.order_book_features import OrderBookFeatureTransformer
+    from app.order_book_features import OrderBookFeatureTransformer
     ob_features = OrderBookFeatureTransformer.generate_order_book_features([], order_book)
+
     return {
         "best_bid": best_bid,
         "best_ask": best_ask,
