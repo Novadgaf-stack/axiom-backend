@@ -186,8 +186,8 @@ class AIAnalyst:
 
     @retry(
         retry=retry_if_exception_type(RetryableGeminiError),
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=1, max=10),
+        stop=stop_after_attempt(5),
+        wait=wait_exponential(multiplier=1.5, min=2, max=15),
         reraise=True,
     )
     async def _call_gemini(self, prompt: str) -> str:
