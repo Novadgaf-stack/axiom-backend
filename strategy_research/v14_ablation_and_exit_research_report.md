@@ -1,7 +1,7 @@
 # NEXUS-7 — V14 COMPONENT ABLATION & EXIT OPTIMIZATION REPORT
 
-**Report Generated:** 2026-08-14 15:35:22 UTC  
-**Execution Duration:** 4.12s  
+**Report Generated:** 2026-08-14 16:10:58 UTC  
+**Execution Duration:** 4.04s  
 **DATA PARTITIONING:** 70% In-Sample (~126 Days) / 30% Out-of-Sample Holdout (~54 Days)  
 **TRANSACTION COSTS:** Binance Spot Taker Fee 0.10% + Slippage 0.05%  
 **TIMESTAMP PARITY SCORE:** `100.0%` (0-LOOKAHEAD PARITY CERTIFIED)  
