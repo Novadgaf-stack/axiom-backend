@@ -1,7 +1,7 @@
 # NEXUS-7 — V16 SOL/USDT 1H DEDICATED HYPOTHESIS VALIDATION REPORT
 
-**Report Generated:** 2026-08-14 15:22:08 UTC  
-**Execution Duration:** 0.63s  
+**Report Generated:** 2026-08-14 15:29:03 UTC  
+**Execution Duration:** 0.92s  
 **DATA SAMPLE:** 30 Days (~8,760 1h Candles) — 70% In-Sample / 30% Out-of-Sample Holdout  
 **TRANSACTION COSTS:** Binance Spot Taker Fee 0.10% + Slippage 0.05%  
 **MONTE CARLO BOOTSTRAP:** 1,000 Resampling Iterations  

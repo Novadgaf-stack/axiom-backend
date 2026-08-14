@@ -1,7 +1,7 @@
 # NEXUS-7 — V20 REGIME-AWARE RISK-CONTROLLED EDGE OPTIMIZATION REPORT
 
-**Report Generated:** 2026-08-14 15:22:11 UTC  
-**Execution Duration:** 0.90s  
+**Report Generated:** 2026-08-14 15:29:07 UTC  
+**Execution Duration:** 1.47s  
 **DATA SOURCE:** Genuine Binance Public Mainnet Candles (~17,520 1h Candles)  
 **CHRONOLOGICAL SPLIT:** 70% Train (~511 days) / 15% Validation (~110 days) / 15% Untouched Test (~109 days)  
 **TRANSACTION COSTS:** Binance Spot Taker Fee 0.10% + Slippage 0.05% + V11 Order-Book Spread Penalty  
