@@ -158,5 +158,5 @@ async def test_valid_gemini_response_parsing(monkeypatch):
 
 
 def test_config_min_confidence_default():
-    assert settings.min_confidence_score == 88
-    assert getattr(settings, "AI_MIN_CONFIDENCE") == 88
+    assert settings.min_confidence_score == 82
+    assert getattr(settings, "AI_MIN_CONFIDENCE") == 82

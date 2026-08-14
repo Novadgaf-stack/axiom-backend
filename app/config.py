@@ -61,17 +61,19 @@ class Settings:
     gemini_model: str = field(default_factory=lambda: os.getenv("GEMINI_MODEL", "gemini-flash-latest"))
 
     # --- Trading universe ---
-    trading_pairs: list[str] = field(default_factory=lambda: _list("TRADING_PAIRS", ["BTC/USDT", "ETH/USDT"], upper=True))
+    trading_pairs: list[str] = field(
+        default_factory=lambda: _list("TRADING_PAIRS", ["BTC/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT"], upper=True)
+    )
     timeframe: str = field(default_factory=lambda: os.getenv("TIMEFRAME", "15m"))
     ohlcv_lookback: int = field(default_factory=lambda: _int("OHLCV_LOOKBACK", 200))
     poll_interval_seconds: int = field(default_factory=lambda: _int("POLL_INTERVAL_SECONDS", 60))
 
     # --- Decision gating & filters ---
-    min_confidence_score: int = field(default_factory=lambda: _int("AI_MIN_CONFIDENCE", _int("MIN_CONFIDENCE_SCORE", 88)))
+    min_confidence_score: int = field(default_factory=lambda: _int("AI_MIN_CONFIDENCE", _int("MIN_CONFIDENCE_SCORE", 82)))
     require_technical_confirmation: bool = field(
         default_factory=lambda: _bool("REQUIRE_TECHNICAL_CONFIRMATION", True)
     )
-    min_adx: float = field(default_factory=lambda: _float("MIN_ADX", 20.0))
+    min_adx: float = field(default_factory=lambda: _float("MIN_ADX", 15.0))
     enable_session_filter: bool = field(default_factory=lambda: _bool("ENABLE_SESSION_FILTER", False))
     session_start_hour: int = field(default_factory=lambda: _int("SESSION_START_HOUR", 12))  # UTC
     session_end_hour: int = field(default_factory=lambda: _int("SESSION_END_HOUR", 20))      # UTC
