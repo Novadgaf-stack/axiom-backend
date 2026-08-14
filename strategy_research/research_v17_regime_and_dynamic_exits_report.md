@@ -1,7 +1,7 @@
 # NEXUS-7 — V17 REGIME FILTER & DYNAMIC EXIT RESEARCH REPORT
 
-**Report Generated:** 2026-08-14 15:10:17 UTC  
-**Execution Duration:** 0.70s  
+**Report Generated:** 2026-08-14 15:16:59 UTC  
+**Execution Duration:** 0.69s  
 **DATA PARTITIONING:** 70% In-Sample (~126 Days) / 30% Out-of-Sample Holdout (~54 Days)  
 **TRANSACTION COSTS:** Binance Spot Taker Fee 0.10% + Slippage 0.05%  
 **MONTE CARLO BOOTSTRAP:** 1,000 Resample Iterations  

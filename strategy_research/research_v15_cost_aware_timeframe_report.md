@@ -1,6 +1,6 @@
 # NEXUS-7 — V15 COST-AWARE MULTI-TIMEFRAME RESEARCH REPORT
 
-**Report Generated:** 2026-08-14 15:10:15 UTC  
+**Report Generated:** 2026-08-14 15:16:57 UTC  
 **Execution Duration:** 1.69s  
 **DATA PARTITIONING:** 70% In-Sample (~126 Days) / 30% Out-of-Sample Holdout (~54 Days)  
 **TRANSACTION COSTS:** Binance Spot Taker Fee 0.10% + Slippage 0.05% (Baseline)  
