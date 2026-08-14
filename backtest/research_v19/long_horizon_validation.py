@@ -130,10 +130,13 @@ async def run_single_v19_horizon(
     # Quarterly Breakdown (8 quarters over 730 days)
     quarter_len = len(candles_all) // 8
     quarter_results: List[LongHorizonQuarterResult] = []
-    q_names = ["2025-Q1", "2025-Q2", "2025-Q3", "2025-Q4", "2026-Q1", "2026-Q2", "2026-Q3", "2026-Q4"]
 
     for i in range(8):
         q_candles = candles_all[i * quarter_len : (i + 1) * quarter_len]
+        start_dt = datetime.fromtimestamp(q_candles[0][0] / 1000, tz=timezone.utc)
+        q_num = (start_dt.month - 1) // 3 + 1
+        q_name = f"{start_dt.year}-Q{q_num}"
+
         q_analyst = MockAiAnalyst(mode=mode, seed=42 + i, settings_obj=settings_obj)
         q_sim = BacktestSimulator(
             candles=q_candles,
@@ -155,7 +158,7 @@ async def run_single_v19_horizon(
         )
         quarter_results.append(
             LongHorizonQuarterResult(
-                quarter_name=q_names[i],
+                quarter_name=q_name,
                 symbol=symbol,
                 total_trades=q_rep.total_trades,
                 win_rate_pct=round(q_rep.win_rate_pct, 1),
@@ -171,15 +174,19 @@ async def run_single_v19_horizon(
     return overall_res, quarter_results
 
 
-def run_full_v19_pipeline(days: int = 730, seed: int = 42) -> Dict:
+def run_full_v19_pipeline(days: int = 730, seed: int = 42, cache_dir: str = "./data_cache") -> Dict:
     t0 = time.time()
     symbols = ["SOL/USDT", "BTC/USDT"]
     overall_list: List[LongHorizonOverallResult] = []
     quarter_dict: Dict[str, List[LongHorizonQuarterResult]] = {}
 
     for sym in symbols:
-        candles_15m = generate_synthetic_history(days=days, timeframe_minutes=15, seed=seed)
-        candles_1h = resample_candles(candles_15m, factor=4)
+        try:
+            candles_1h = fetch_binance_history(symbol=sym, timeframe="1h", days=days, cache_dir=cache_dir, refresh=False, verbose=False)
+        except Exception:
+            candles_15m = generate_synthetic_history(days=days, timeframe_minutes=15, seed=seed)
+            candles_1h = resample_candles(candles_15m, factor=4)
+
         overall_res, q_results = asyncio.run(run_single_v19_horizon(sym, candles_1h))
         overall_list.append(overall_res)
         quarter_dict[sym] = q_results
