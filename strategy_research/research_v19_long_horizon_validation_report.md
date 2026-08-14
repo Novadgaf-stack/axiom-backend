@@ -1,7 +1,7 @@
 # NEXUS-7 — V19 FROZEN PARAMETER LONG-HORIZON FORWARD VALIDATION REPORT
 
-**Report Generated:** 2026-08-14 15:29:06 UTC  
-**Execution Duration:** 0.79s  
+**Report Generated:** 2026-08-14 15:35:26 UTC  
+**Execution Duration:** 0.47s  
 **EVALUATION HORIZON:** 730 Days (~17,520 Candles / 2 Full Years)  
 **STRATEGY STATUS:** Frozen Parameters (`MIN_CONFIDENCE=88`, `MIN_ADX=25.0`, `ATR SL=1.5`, `ATR Trailing=3.5`, V11 Order-Book Gating)  
 **TRANSACTION COSTS:** Binance Spot Taker Fee 0.10% + Slippage 0.05% + V11 Order-Book Spread Penalty  

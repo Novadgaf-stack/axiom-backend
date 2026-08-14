@@ -1,7 +1,7 @@
 # NEXUS-7 — V21 TRADE SELECTION & EXIT EFFICIENCY RESEARCH REPORT
 
-**Report Generated:** 2026-08-14 15:29:08 UTC  
-**Execution Duration:** 1.39s  
+**Report Generated:** 2026-08-14 15:35:27 UTC  
+**Execution Duration:** 0.84s  
 **DATA SOURCE:** Genuine Binance Public Mainnet Candles (~17,520 1h Candles)  
 **CHRONOLOGICAL SPLIT:** 70% Train (~511 days) / 15% Validation (~110 days) / 15% Untouched Test (~109 days)  
 **FEE FRICTION MATRIX:** Standard 0.30% Roundtrip vs High 0.45% Roundtrip  

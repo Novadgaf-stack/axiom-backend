@@ -1,7 +1,7 @@
 # NEXUS-7 — V18 ROBUSTNESS & EDGE DISCOVERY RESEARCH REPORT
 
-**Report Generated:** 2026-08-14 15:29:05 UTC  
-**Execution Duration:** 0.62s  
+**Report Generated:** 2026-08-14 15:35:25 UTC  
+**Execution Duration:** 0.29s  
 **WALK-FORWARD STRUCTURE:** 3 Independent Non-Overlapping 60-Day OOS Windows  
 **TRANSACTION COSTS:** Binance Spot Taker Fee 0.10% + Slippage 0.05% + V11 Order-Book Spread Penalty  
 **MONTE CARLO BOOTSTRAP:** 1,000 Resample Iterations per Window  
