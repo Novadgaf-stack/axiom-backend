@@ -10,6 +10,7 @@ from app.reconciliation import StateReconciler
 from app.risk import RiskManager
 from app.state_machine import TradingStateMachine, EngineState
 from app.watchdog import ServiceWatchdog
+from app.config import settings
 from app.logging_setup import get_logger
 
 logger = get_logger("testnet_runner")
@@ -57,8 +58,11 @@ class TestnetExecutionRunner:
         self.watchdog.record_heartbeat("market_data")
         self.watchdog.record_heartbeat("strategy_engine")
         
-        if signal_direction not in ("BUY", "SELL") or confidence_score < 90:
+        min_conf = getattr(settings, "min_confidence_score", 70)
+        if signal_direction not in ("BUY", "SELL") or confidence_score < min_conf:
+            logger.info(f"Signal ignored: direction={signal_direction}, conf={confidence_score} < min_conf={min_conf}")
             return None
+
             
         side = signal_direction.lower()
         

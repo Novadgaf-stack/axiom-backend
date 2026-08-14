@@ -57,10 +57,10 @@ All decisions produced by the Solana Agent Layer follow a strict Pydantic JSON s
     "error": null
   },
   "execution": {
-    "status": "EXECUTED",
+    "status": "PENDING_DEVNET_AIRDROP",
     "cluster": "devnet",
-    "tx_signature": "5K7x9...devnet",
-    "timestamp_utc": "2026-08-13T15:00:00Z"
+    "tx_signature": null,
+    "timestamp_utc": "2026-08-14T09:00:00Z"
   }
 }
 ```

@@ -38,7 +38,7 @@ This grant project extends Nexus-7 by building an isolated, non-custodial **Sola
     "reason": "EMA trend bull & Gemini AI score 88% cleared policy",
     "risk_check": "PASS",
     "solana_simulation": "SUCCESS",
-    "tx_signature": "5K...devnet"
+    "tx_signature": null
   }
   ```
 - **Automated Test Suite (`tests/test_solana_agent.py`)**: Comprehensive tests for policy violations, simulation failures, invalid agent decisions, and key isolation.

@@ -1,7 +1,7 @@
 # NEXUS-7 — MTF-TP DEEP ROBUSTNESS & ATTRIBUTION REPORT (V7)
 
-**Report Generated:** 2026-08-13 14:16:50 UTC  
-**Pipeline Evaluation Duration:** 1.10s  
+**Report Generated:** 2026-08-14 08:57:54 UTC  
+**Pipeline Evaluation Duration:** 1.87s  
 **SAMPLE SIZE EVALUATED:** `5,000 Bars (BTC & ETH)`  
 **FINAL ROBUSTNESS VERDICT:** `REJECTED — EDGE UNSTABLE`  
 **DEFLATED SHARPE RATIO (DSR):** `0.0%` (REJECTED (Sharpe <= 0))  
