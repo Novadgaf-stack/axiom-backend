@@ -32,7 +32,7 @@ tests\test_simulator.py ....                                             [ 76%]
 tests\test_solana_agent.py .........                                     [ 85%]
 tests\test_testnet_readiness.py .........                                [ 93%]
 tests\test_v5_invariants.py .......                                      [100%]
-====================== 108 passed, 2 warnings in 12.85s =======================
+====================== 113 passed, 2 warnings in 35.73s =======================
 ```
 
 ---
