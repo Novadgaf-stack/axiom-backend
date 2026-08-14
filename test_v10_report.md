@@ -1,7 +1,7 @@
 # NEXUS-7 — V10 REAL MARKET DATA & DRAWDOWN GUARD REPORT
 
-**Report Generated:** 2026-08-14 08:57:50 UTC  
-**Pipeline Evaluation Duration:** 0.01s  
+**Report Generated:** 2026-08-14 17:17:51 UTC  
+**Pipeline Evaluation Duration:** 0.00s  
 **DATA INGESTION CLASSIFICATION:** `TICK_LEVEL_TRUE_ORDER_FLOW`  
 **PORTFOLIO DRAWDOWN LIMIT:** `< 15.0%` (Unconstrained DD: 20.00% -> Constrained: 15.00%)  
 **OVERALL PROMOTION VERDICT:** `REJECTED (NO EDGE PROVEN)`  

@@ -1,7 +1,7 @@
 # NEXUS-7 — MICROSTRUCTURE & PORTFOLIO ALPHA REPORT (V8)
 
-**Report Generated:** 2026-08-14 08:57:58 UTC  
-**Pipeline Evaluation Duration:** 3.97s  
+**Report Generated:** 2026-08-14 16:14:26 UTC  
+**Pipeline Evaluation Duration:** 1.23s  
 **SAMPLE SIZE EVALUATED:** `10,000 Bars (BTC & ETH)`  
 **OVERALL PROMOTION VERDICT:** `REJECTED (NO EDGE PROVEN)`  
 **LIVE REAL-MONEY TRADING:** `STRICTLY LOCKED / BLOCKED`
