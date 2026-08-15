@@ -1,9 +1,8 @@
 """
-Candle Resolver Engine for NEXUS-7 Research V33
-Executes zero-stub bar-by-bar candle traversal, 1-bar delay, realistic fees & slippage,
-conservative SL/TP collision handling, stop-distance position sizing,
-and consecutive-loss & circuit breaker risk controls.
-High-performance NumPy vectorized array access.
+Candle Resolver Engine for NEXUS-7 Research V34
+Executes zero-stub bar-by-bar candle traversal with high-performance NumPy array indexing.
+Includes 1-bar delay, 0.15% fees, 0.05% slippage, conservative SL/TP collision (LOSS),
+stop-distance position sizing, consecutive-loss step-downs, and circuit breakers.
 """
 
 from typing import Dict, List, Any, Optional, Tuple
@@ -27,7 +26,6 @@ def resolve_zero_stub_trades(
     """
     Zero-stub candle traversal engine optimized with NumPy arrays.
     Derives all trade outcomes exclusively from subsequent OHLC price action.
-    Implements consecutive-loss protections and circuit breakers.
     """
     n = len(df)
     if n < 5 or "signal" not in df.columns:
@@ -38,7 +36,6 @@ def resolve_zero_stub_trades(
             "max_drawdown": 0.0
         }
 
-    # Extract NumPy arrays for fast sub-millisecond indexing
     timestamps = df["timestamp"].values
     opens = df["open"].values
     highs = df["high"].values
@@ -106,7 +103,6 @@ def resolve_zero_stub_trades(
 
             direction = 1 if signal > 0 else -1
 
-            # Entry slippage adjustment
             entry_price = raw_entry * (1.0 + slippage) if direction == 1 else raw_entry * (1.0 - slippage)
             stop_dist = abs(entry_price - raw_sl)
 
@@ -114,7 +110,6 @@ def resolve_zero_stub_trades(
                 i += 1
                 continue
 
-            # Consecutive loss risk step-down
             effective_risk_pct = min(risk_fraction, max_risk_cap) * correlation_penalty_mult
             if consecutive_losses >= 5:
                 effective_risk_pct = min(effective_risk_pct, 0.0025)

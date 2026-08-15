@@ -16,15 +16,15 @@
 
 | Candidate ID | Family | TF | OOS Trades/Day | OOS Win Rate | OOS PF (0.15%) | Bootstrap 95% CI | Max DD (%) | Verdict |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| `V27-MTF-PULLBACK-15M` | Targeted MTF Pullback | 15m | 3.47 | 100.0% | 99.0 | [0.022342, 0.024697] | 0.0% | `REJECTED (NO EDGE PROVEN)` |
-| `V27-MTF-PULLBACK-30M` | Targeted MTF Pullback | 30m | 1.6 | 100.0% | 99.0 | [0.022063, 0.024876] | 0.0% | `REJECTED (NO EDGE PROVEN)` |
-| `V27-BREAKOUT-VOL-30M` | Filtered Breakout Expansion | 30m | 0.53 | 100.0% | 99.0 | [0.0, 0.0] | 0.0% | `REJECTED (NO EDGE PROVEN)` |
-| `V27-BREAKOUT-VOL-1H` | Filtered Breakout Expansion | 1h | 0.67 | 100.0% | 99.0 | [0.019035, 0.024007] | 0.0% | `REJECTED (NO EDGE PROVEN)` |
-| `V27-MEAN-REV-15M` | Adaptive Mean Reversion | 15m | 7.21 | 48.1% | 1.61 | [-0.001218, 0.013039] | 8.7% | `REJECTED (NO EDGE PROVEN)` |
-| `V27-MEAN-REV-30M` | Adaptive Mean Reversion | 30m | 3.74 | 53.6% | 2.11 | [6.7e-05, 0.019899] | 6.47% | `REJECTED (NO EDGE PROVEN)` |
-| `V27-MOM-CONT-1H` | Momentum Continuation | 1h | 3.22 | 50.0% | 1.12 | [-0.007028, 0.00949] | 9.75% | `REJECTED (NO EDGE PROVEN)` |
+| `V27-MTF-PULLBACK-15M` | Targeted MTF Pullback | 15m | 1.47 | 100.0% | 99.0 | [0.02181, 0.025272] | 0.0% | `REJECTED (NO EDGE PROVEN)` |
+| `V27-MTF-PULLBACK-30M` | Targeted MTF Pullback | 30m | 1.74 | 100.0% | 99.0 | [0.019754, 0.022008] | 0.0% | `REJECTED (NO EDGE PROVEN)` |
+| `V27-BREAKOUT-VOL-30M` | Filtered Breakout Expansion | 30m | 1.07 | 100.0% | 99.0 | [0.020647, 0.023656] | 0.0% | `REJECTED (NO EDGE PROVEN)` |
+| `V27-BREAKOUT-VOL-1H` | Filtered Breakout Expansion | 1h | 0.67 | 100.0% | 99.0 | [0.020255, 0.024316] | 0.0% | `REJECTED (NO EDGE PROVEN)` |
+| `V27-MEAN-REV-15M` | Adaptive Mean Reversion | 15m | 5.21 | 51.3% | 1.82 | [-0.000701, 0.015748] | 11.17% | `REJECTED (NO EDGE PROVEN)` |
+| `V27-MEAN-REV-30M` | Adaptive Mean Reversion | 30m | 3.08 | 56.5% | 2.03 | [-0.001139, 0.017801] | 8.55% | `REJECTED (NO EDGE PROVEN)` |
+| `V27-MOM-CONT-1H` | Momentum Continuation | 1h | 4.02 | 26.7% | 0.46 | [-0.014089, -0.000244] | 28.23% | `REJECTED (NO EDGE PROVEN)` |
 | `V27-MOM-CONT-4H` | Momentum Continuation | 4h | 0.0 | 0.0% | 0.0 | [0.0, 0.0] | 0.0% | `REJECTED (NO EDGE PROVEN)` |
-| `V27-CONFLUENCE-30M` | Dynamic Multi-Timeframe Confluence | 30m | 32.09 | 100.0% | 99.0 | [0.024132, 0.024888] | 0.0% | `REJECTED (NO EDGE PROVEN)` |
+| `V27-CONFLUENCE-30M` | Dynamic Multi-Timeframe Confluence | 30m | 36.9 | 100.0% | 99.0 | [0.024326, 0.025109] | 0.0% | `REJECTED (NO EDGE PROVEN)` |
 
 ---
 
@@ -32,15 +32,15 @@
 
 | Candidate ID | OOS PF (0.15%) | OOS PF (0.30%) | OOS PF (0.45%) | Paper Return (%) | Paper Max DD (%) |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `V27-MTF-PULLBACK-15M` | 99.0 | 99.0 | 99.0 | 409.99% | 0.0% |
-| `V27-MTF-PULLBACK-30M` | 99.0 | 99.0 | 99.0 | 111.52% | 0.0% |
-| `V27-BREAKOUT-VOL-30M` | 99.0 | 99.0 | 99.0 | 20.53% | 0.0% |
-| `V27-BREAKOUT-VOL-1H` | 99.0 | 99.0 | 99.0 | 10.13% | 0.0% |
-| `V27-MEAN-REV-15M` | 1.61 | 1.26 | 0.99 | 8.94% | 7.22% |
-| `V27-MEAN-REV-30M` | 2.11 | 1.65 | 1.31 | 13.8% | 6.53% |
-| `V27-MOM-CONT-1H` | 1.12 | 0.83 | 0.61 | 147.39% | 0.0% |
-| `V27-MOM-CONT-4H` | 0.0 | 0.0 | 0.0 | 17.53% | 0.0% |
-| `V27-CONFLUENCE-30M` | 99.0 | 99.0 | 99.0 | 140073.11% | 0.0% |
+| `V27-MTF-PULLBACK-15M` | 99.0 | 99.0 | 99.0 | 249.33% | 0.0% |
+| `V27-MTF-PULLBACK-30M` | 99.0 | 99.0 | 99.0 | 114.39% | 0.0% |
+| `V27-BREAKOUT-VOL-30M` | 99.0 | 99.0 | 99.0 | 18.46% | 0.0% |
+| `V27-BREAKOUT-VOL-1H` | 99.0 | 99.0 | 99.0 | 16.4% | 0.0% |
+| `V27-MEAN-REV-15M` | 1.82 | 1.41 | 1.11 | 25.04% | 5.1% |
+| `V27-MEAN-REV-30M` | 2.03 | 1.56 | 1.21 | 33.32% | 4.29% |
+| `V27-MOM-CONT-1H` | 0.46 | 0.35 | 0.26 | 192.71% | 0.0% |
+| `V27-MOM-CONT-4H` | 0.0 | 0.0 | 0.0 | 19.47% | 0.0% |
+| `V27-CONFLUENCE-30M` | 99.0 | 99.0 | 99.0 | 99105.39% | 0.0% |
 
 ---
 

@@ -1,7 +1,7 @@
 # NEXUS-7 — STRUCTURAL ALPHA DISCOVERY REPORT (V6)
 
-**Report Generated:** 2026-08-14 17:48:36 UTC  
-**Pipeline Evaluation Duration:** 0.62s  
+**Report Generated:** 2026-08-15 07:33:39 UTC  
+**Pipeline Evaluation Duration:** 0.35s  
 **OVERALL PROMOTION VERDICT:** `REJECTED (NO EDGE PROVEN)`  
 **LIVE REAL-MONEY TRADING:** `STRICTLY LOCKED / BLOCKED`
 

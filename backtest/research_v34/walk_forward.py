@@ -1,24 +1,24 @@
 """
-Walk-Forward Validation Module for NEXUS-7 Research V33
-Runs 4-window chronological rolling walk-forward validation.
-Requires >= 3/4 profitable windows for statistical promotion.
+Walk-Forward Validation Module for NEXUS-7 Research V34
+Runs 5-6 window chronological rolling walk-forward validation.
+Requires >= 75% positive windows for statistical promotion.
 """
 
 from typing import Dict, List, Any, Callable
 import numpy as np
 import pandas as pd
-from backtest.research_v33.candle_resolver import resolve_zero_stub_trades
-from backtest.research_v33.statistical_evaluator import compute_trade_statistics
+from backtest.research_v34.candle_resolver import resolve_zero_stub_trades
+from backtest.research_v34.statistical_evaluator import compute_trade_statistics
 
 
 def run_walk_forward_validation(
     df: pd.DataFrame,
     strategy_fn: Callable[[pd.DataFrame], pd.DataFrame],
-    num_windows: int = 4,
+    num_windows: int = 5,
     execution_delay: int = 1
 ) -> Dict[str, Any]:
     """
-    Executes 4-window chronological rolling walk-forward evaluation.
+    Executes 5-6 window chronological rolling walk-forward evaluation.
     """
     n = len(df)
     window_size = n // num_windows
@@ -52,9 +52,11 @@ def run_walk_forward_validation(
             "is_profitable": is_prof
         })
 
+    pass_gate = (positive_count / num_windows) >= 0.75
+
     return {
         "positive_windows": positive_count,
         "num_windows": num_windows,
-        "pass_gate": positive_count >= 3,
+        "pass_gate": pass_gate,
         "window_results": window_results
     }

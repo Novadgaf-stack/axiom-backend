@@ -1,7 +1,7 @@
 # NEXUS-7 — V22 TRADE-LEVEL EDGE ATTRIBUTION & SUBSET ISOLATION REPORT
 
-**Report Generated:** 2026-08-14 17:20:23 UTC  
-**Execution Duration:** 0.64s  
+**Report Generated:** 2026-08-15 08:29:54 UTC  
+**Execution Duration:** 0.87s  
 **DATA SOURCE:** Genuine Binance Public Mainnet Candles (~17,520 1h Candles)  
 **UNTOUCHED TEST EVALUATION:** 15% Untouched Test Split (Feb 2026 – Aug 2026)  
 **TRANSACTION COSTS:** Binance Spot Taker Fee 0.10% + Slippage 0.05% + V11 Order-Book Spread Penalty  
@@ -16,14 +16,14 @@
 
 | Asset | Category | Bucket Name | Total Trades | Win Rate % | Net PF | Net PnL ($) | Net Exp ($) | Net Exp (R) | Bootstrap 95% CI PF | Verdict |
 | :--- | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
-| **SOL/USDT** | `Baseline` | `Untouched_Test_All` | 3 | 33.3% | **0.11** | +$-8.73 | +$-2.91 | **-0.01R** | **[0.00, 0.00]** | **FAIL (NO ROBUST EDGE)** |
-| **SOL/USDT** | `1_ADX_Strength` | `ADX_20_to_25` | 4 | 25.0% | **0.06** | +$-18.47 | +$-4.62 | **-0.03R** | **[0.00, 0.00]** | **FAIL (NO ROBUST EDGE)** |
-| **SOL/USDT** | `1_ADX_Strength` | `ADX_Above_28` | 3 | 33.3% | **0.11** | +$-8.73 | +$-2.91 | **-0.01R** | **[0.00, 0.00]** | **FAIL (NO ROBUST EDGE)** |
-| **SOL/USDT** | `2_Volatility_Ratio` | `ATR_Expansion_Ratio` | 3 | 33.3% | **0.10** | +$-10.03 | +$-3.34 | **-0.02R** | **[0.00, 0.00]** | **FAIL (NO ROBUST EDGE)** |
-| **SOL/USDT** | `3_AI_Confidence_Tier` | `AI_Confidence_Above_92` | 3 | 33.3% | **0.11** | +$-8.73 | +$-2.91 | **-0.01R** | **[0.00, 0.00]** | **FAIL (NO ROBUST EDGE)** |
-| **SOL/USDT** | `4_Isolated_Core_Subset` | `Core_High_Expectancy_Subset` | 3 | 33.3% | **0.11** | +$-8.73 | +$-2.91 | **-0.01R** | **[0.00, 0.00]** | **FAIL (NO ROBUST EDGE)** |
+| **SOL/USDT** | `Baseline` | `Untouched_Test_All` | 3 | 33.3% | **0.12** | +$-8.61 | +$-2.87 | **-0.01R** | **[0.00, 0.00]** | **FAIL (NO ROBUST EDGE)** |
+| **SOL/USDT** | `1_ADX_Strength` | `ADX_20_to_25` | 3 | 33.3% | **0.12** | +$-8.61 | +$-2.87 | **-0.01R** | **[0.00, 0.00]** | **FAIL (NO ROBUST EDGE)** |
+| **SOL/USDT** | `1_ADX_Strength` | `ADX_Above_28` | 3 | 33.3% | **0.12** | +$-8.61 | +$-2.87 | **-0.01R** | **[0.00, 0.00]** | **FAIL (NO ROBUST EDGE)** |
+| **SOL/USDT** | `2_Volatility_Ratio` | `ATR_Expansion_Ratio` | 3 | 33.3% | **0.11** | +$-9.93 | +$-3.31 | **-0.02R** | **[0.00, 0.00]** | **FAIL (NO ROBUST EDGE)** |
+| **SOL/USDT** | `3_AI_Confidence_Tier` | `AI_Confidence_Above_92` | 3 | 33.3% | **0.12** | +$-8.61 | +$-2.87 | **-0.01R** | **[0.00, 0.00]** | **FAIL (NO ROBUST EDGE)** |
+| **SOL/USDT** | `4_Isolated_Core_Subset` | `Core_High_Expectancy_Subset` | 3 | 33.3% | **0.12** | +$-8.61 | +$-2.87 | **-0.01R** | **[0.00, 0.00]** | **FAIL (NO ROBUST EDGE)** |
 | **BTC/USDT** | `Baseline` | `Untouched_Test_All` | 1 | 0.0% | **0.00** | +$-7.98 | +$-7.98 | **-0.05R** | **[0.00, 0.00]** | **FAIL (NO ROBUST EDGE)** |
-| **BTC/USDT** | `1_ADX_Strength` | `ADX_20_to_25` | 3 | 0.0% | **0.00** | +$-14.72 | +$-4.91 | **-0.03R** | **[0.00, 0.00]** | **FAIL (NO ROBUST EDGE)** |
+| **BTC/USDT** | `1_ADX_Strength` | `ADX_20_to_25` | 2 | 0.0% | **0.00** | +$-12.67 | +$-6.34 | **-0.04R** | **[0.00, 0.00]** | **FAIL (NO ROBUST EDGE)** |
 | **BTC/USDT** | `1_ADX_Strength` | `ADX_Above_28` | 1 | 0.0% | **0.00** | +$-7.98 | +$-7.98 | **-0.05R** | **[0.00, 0.00]** | **FAIL (NO ROBUST EDGE)** |
 | **BTC/USDT** | `2_Volatility_Ratio` | `ATR_Expansion_Ratio` | 1 | 0.0% | **0.00** | +$-8.98 | +$-8.98 | **-0.06R** | **[0.00, 0.00]** | **FAIL (NO ROBUST EDGE)** |
 | **BTC/USDT** | `3_AI_Confidence_Tier` | `AI_Confidence_Above_92` | 1 | 0.0% | **0.00** | +$-7.98 | +$-7.98 | **-0.05R** | **[0.00, 0.00]** | **FAIL (NO ROBUST EDGE)** |

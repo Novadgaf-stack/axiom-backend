@@ -1,7 +1,8 @@
 """
-Data Pipeline Module for NEXUS-7 Research V33
-Manages multi-asset data generation/loading across Tier 1 (12), Tier 2 (20), Tier 3 (30), Tier 4 (50), Tier 5 (75+) universe tiers.
+Data Pipeline Module for NEXUS-7 Research V34
+Manages multi-asset data generation/loading across Tier 1 (12), Tier 2 (25), Tier 3 (50), Tier 4 (75), Tier 5 (100), Tier 6 (150) universe tiers.
 Implements liquidity filtering, data quality verification, and chronological 50/25/25 partitioning.
+Distinguishes UNIVERSE_SIZE, LIQUID_UNIVERSE_SIZE, and TRADEABLE_UNIVERSE_SIZE.
 """
 
 from typing import Dict, List, Tuple, Any, Optional
@@ -16,28 +17,33 @@ UNIVERSE_TIERS = {
     "TIER_2": [
         "BTC", "ETH", "SOL", "BNB", "XRP", "DOGE",
         "ADA", "AVAX", "LINK", "DOT", "NEAR", "SUI",
-        "LTC", "BCH", "UNI", "AAVE", "ATOM", "FIL", "ARB", "OP"
+        "LTC", "BCH", "UNI", "AAVE", "ATOM", "FIL", "ARB", "OP",
+        "INJ", "SEI", "TIA", "TAO", "RENDER"
     ],
     "TIER_3": [
         "BTC", "ETH", "SOL", "BNB", "XRP", "DOGE",
         "ADA", "AVAX", "LINK", "DOT", "NEAR", "SUI",
         "LTC", "BCH", "UNI", "AAVE", "ATOM", "FIL", "ARB", "OP",
-        "INJ", "SEI", "TIA", "TAO", "RENDER", "FET", "APT", "STX", "PEPE", "WIF"
+        "INJ", "SEI", "TIA", "TAO", "RENDER",
+        "FET", "APT", "STX", "PEPE", "WIF", "FLOKI", "BONK", "GALA", "SAND", "MANA",
+        "CRV", "SNX", "LDO", "MKR", "RUNE", "DYDX", "ENS", "IMX", "GRT", "COMP",
+        "1INCH", "ALGO", "FTM", "EGLD", "FLOW"
     ],
     "TIER_4": [
-        "BTC", "ETH", "SOL", "BNB", "XRP", "DOGE", "ADA", "AVAX", "LINK", "DOT",
-        "NEAR", "SUI", "LTC", "BCH", "UNI", "AAVE", "ATOM", "FIL", "ARB", "OP",
-        "INJ", "SEI", "TIA", "TAO", "RENDER", "FET", "APT", "STX", "PEPE", "WIF",
-        "FLOKI", "BONK", "GALA", "SAND", "MANA", "CRV", "SNX", "LDO", "MKR", "RUNE",
-        "DYDX", "ENS", "IMX", "GRT", "COMP", "1INCH", "ALGO", "FTM", "EGLD", "FLOW"
+        f"ASSET_{i:03d}" for i in range(1, 76)
     ],
     "TIER_5": [
-        f"ASSET_{i:02d}" for i in range(1, 76)
+        f"ASSET_{i:03d}" for i in range(1, 101)
+    ],
+    "TIER_6": [
+        f"ASSET_{i:03d}" for i in range(1, 151)
     ]
 }
 
-# Override top names for Tier 5
-UNIVERSE_TIERS["TIER_5"][:50] = UNIVERSE_TIERS["TIER_4"]
+# Override top names for Tier 4, Tier 5, Tier 6
+UNIVERSE_TIERS["TIER_4"][:50] = UNIVERSE_TIERS["TIER_3"]
+UNIVERSE_TIERS["TIER_5"][:50] = UNIVERSE_TIERS["TIER_3"]
+UNIVERSE_TIERS["TIER_6"][:50] = UNIVERSE_TIERS["TIER_3"]
 
 SUPPORTED_TIMEFRAMES = ["15m", "30m", "1h", "4h"]
 
@@ -50,14 +56,11 @@ def validate_and_clean_ohlcv(df: pd.DataFrame) -> Tuple[pd.DataFrame, bool, List
     if df.empty:
         return df, False, ["Empty DataFrame"]
 
-    # Ensure timestamp sorting
     df_clean = df.sort_values("timestamp").reset_index(drop=True)
 
-    # Check timestamp monotonicity
     if not df_clean["timestamp"].is_monotonic_increasing:
         issues.append("Timestamps were out of order")
 
-    # Fix impossible OHLC bounds
     bad_high = df_clean["high"] < df_clean[["open", "close"]].max(axis=1)
     bad_low = df_clean["low"] > df_clean[["open", "close"]].min(axis=1)
 
@@ -66,7 +69,6 @@ def validate_and_clean_ohlcv(df: pd.DataFrame) -> Tuple[pd.DataFrame, bool, List
         df_clean["high"] = df_clean[["open", "close", "high"]].max(axis=1)
         df_clean["low"] = df_clean[["open", "close", "low"]].min(axis=1)
 
-    # Check for missing/zero prices
     if (df_clean["close"] <= 0).any():
         issues.append("Contains zero or negative close prices")
 
@@ -78,13 +80,15 @@ def apply_liquidity_filter(
     datasets: Dict[str, pd.DataFrame],
     min_avg_daily_volume: float = 1000000.0, # $1M min daily volume
     max_missing_bar_pct: float = 0.05
-) -> Tuple[Dict[str, pd.DataFrame], Dict[str, str]]:
+) -> Tuple[Dict[str, pd.DataFrame], Dict[str, str], Dict[str, int]]:
     """
     Filters multi-asset datasets based on average daily volume and data completeness.
-    Returns (eligible_datasets, rejected_assets_dict).
+    Returns (tradeable_datasets, rejected_assets_dict, universe_counts_dict).
     """
     eligible = {}
     rejected = {}
+
+    universe_size = len(datasets)
 
     for asset, df in datasets.items():
         df_clean, is_valid, issues = validate_and_clean_ohlcv(df)
@@ -99,7 +103,16 @@ def apply_liquidity_filter(
 
         eligible[asset] = df_clean
 
-    return eligible, rejected
+    liquid_universe_size = len(eligible) + len([k for k in rejected if "volume" not in rejected[k]])
+    tradeable_universe_size = len(eligible)
+
+    counts = {
+        "UNIVERSE_SIZE": universe_size,
+        "LIQUID_UNIVERSE_SIZE": liquid_universe_size,
+        "TRADEABLE_UNIVERSE_SIZE": tradeable_universe_size
+    }
+
+    return eligible, rejected, counts
 
 
 def generate_synthetic_asset_data(
@@ -191,11 +204,10 @@ def get_asset_holdout_split(datasets: Dict[str, pd.DataFrame]) -> Tuple[Dict[str
     return train_dict, val_dict, oos_dict
 
 
-
 def load_universe_tier(
     tier_name: str = "TIER_1",
     timeframe: str = "1h",
-    num_bars: int = 1500,
+    num_bars: int = 300,
     seed: int = 42
 ) -> Dict[str, pd.DataFrame]:
     """Loads all asset datasets for a specified universe tier."""
@@ -204,6 +216,7 @@ def load_universe_tier(
     for asset in assets:
         datasets[asset] = generate_synthetic_asset_data(asset, timeframe, num_bars=num_bars, seed=seed)
     return datasets
+
 
 
 def compute_rolling_correlation_matrix(datasets: Dict[str, pd.DataFrame]) -> pd.DataFrame:

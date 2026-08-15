@@ -1,7 +1,7 @@
 # NEXUS-7 — V23 HIGH-CONFIDENCE EDGE REFINEMENT & PAPER TRADING REPORT
 
-**Report Generated:** 2026-08-14 17:20:24 UTC  
-**Execution Duration:** 0.44s  
+**Report Generated:** 2026-08-15 08:29:55 UTC  
+**Execution Duration:** 0.69s  
 **DATA SOURCE:** Genuine Binance Public Mainnet Candles (~17,520 1h Candles)  
 **UNTOUCHED TEST EVALUATION:** 15% Untouched Test Split (Feb 2026 – Aug 2026)  
 **TRANSACTION COSTS:** Binance Spot Taker Fee 0.10% + Slippage 0.05% + V11 Order-Book Spread Penalty  
@@ -17,11 +17,11 @@
 
 | Asset | Split | Experiment | Total Trades | Win Rate % | Net PF | Net PnL ($) | Net Exp ($) | Net Exp (R) | Max DD % | Bootstrap 95% CI PF | Verdict |
 | :--- | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
-| **SOL/USDT** | `3_Untouched_Test_15pct` | `1_Baseline_Untouched_Test` | 4 | 25.0% | **0.06** | +$-18.47 | +$-4.62 | **-0.03R** | 0.2% | **[0.00, 0.00]** | **FAIL (NO ROBUST EDGE)** |
-| **SOL/USDT** | `3_Untouched_Test_15pct` | `2_High_Confidence_Refinement` | 3 | 33.3% | **0.11** | +$-8.73 | +$-2.91 | **-0.01R** | 0.1% | **[0.00, 0.00]** | **FAIL (NO ROBUST EDGE)** |
-| **SOL/USDT** | `3_Untouched_Test_15pct` | `3_Tiny_Risk_Sizing_0.5pct` | 3 | 33.3% | **0.11** | +$-8.73 | +$-2.91 | **-0.01R** | 0.1% | **[0.00, 0.00]** | **FAIL (NO ROBUST EDGE)** |
-| **SOL/USDT** | `3_Untouched_Test_15pct` | `4_Extended_ATR_Trail_4.5x` | 3 | 33.3% | **0.11** | +$-8.73 | +$-2.91 | **-0.01R** | 0.1% | **[0.00, 0.00]** | **FAIL (NO ROBUST EDGE)** |
-| **BTC/USDT** | `3_Untouched_Test_15pct` | `1_Baseline_Untouched_Test` | 3 | 0.0% | **0.00** | +$-14.72 | +$-4.91 | **-0.03R** | 0.1% | **[0.00, 0.00]** | **FAIL (NO ROBUST EDGE)** |
+| **SOL/USDT** | `3_Untouched_Test_15pct` | `1_Baseline_Untouched_Test` | 3 | 33.3% | **0.12** | +$-8.61 | +$-2.87 | **-0.01R** | 0.1% | **[0.00, 0.00]** | **FAIL (NO ROBUST EDGE)** |
+| **SOL/USDT** | `3_Untouched_Test_15pct` | `2_High_Confidence_Refinement` | 3 | 33.3% | **0.12** | +$-8.61 | +$-2.87 | **-0.01R** | 0.1% | **[0.00, 0.00]** | **FAIL (NO ROBUST EDGE)** |
+| **SOL/USDT** | `3_Untouched_Test_15pct` | `3_Tiny_Risk_Sizing_0.5pct` | 3 | 33.3% | **0.12** | +$-8.61 | +$-2.87 | **-0.01R** | 0.1% | **[0.00, 0.00]** | **FAIL (NO ROBUST EDGE)** |
+| **SOL/USDT** | `3_Untouched_Test_15pct` | `4_Extended_ATR_Trail_4.5x` | 3 | 33.3% | **0.12** | +$-8.61 | +$-2.87 | **-0.01R** | 0.1% | **[0.00, 0.00]** | **FAIL (NO ROBUST EDGE)** |
+| **BTC/USDT** | `3_Untouched_Test_15pct` | `1_Baseline_Untouched_Test` | 2 | 0.0% | **0.00** | +$-12.67 | +$-6.34 | **-0.04R** | 0.1% | **[0.00, 0.00]** | **FAIL (NO ROBUST EDGE)** |
 | **BTC/USDT** | `3_Untouched_Test_15pct` | `2_High_Confidence_Refinement` | 1 | 0.0% | **0.00** | +$-7.98 | +$-7.98 | **-0.05R** | 0.1% | **[0.00, 0.00]** | **FAIL (NO ROBUST EDGE)** |
 | **BTC/USDT** | `3_Untouched_Test_15pct` | `3_Tiny_Risk_Sizing_0.5pct` | 1 | 0.0% | **0.00** | +$-7.98 | +$-7.98 | **-0.05R** | 0.1% | **[0.00, 0.00]** | **FAIL (NO ROBUST EDGE)** |
 | **BTC/USDT** | `3_Untouched_Test_15pct` | `4_Extended_ATR_Trail_4.5x` | 1 | 0.0% | **0.00** | +$-7.98 | +$-7.98 | **-0.05R** | 0.1% | **[0.00, 0.00]** | **FAIL (NO ROBUST EDGE)** |

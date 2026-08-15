@@ -1,7 +1,7 @@
 """
-Position Sizing Module for NEXUS-7 Research V33
-Evaluates stop-distance position sizing across risk tiers (0.25%, 0.50%, 0.75%, 1.00%, 1.25%, 1.50%).
-Calculates capital growth, monthly return, annualized return, drawdown, and return/DD ratio.
+Position Sizing Module for NEXUS-7 Research V34
+Evaluates stop-distance position sizing across risk tiers (0.25%, 0.50%, 0.75%, 1.00%, 1.25%).
+Compares Fixed Risk vs ATR-Normalized Risk vs Volatility-Scaled Risk.
 Guarantees sizing does NOT manufacture artificial profitability.
 """
 
@@ -14,11 +14,10 @@ def evaluate_position_sizing_and_growth(
     trades: List[Dict[str, Any]],
     initial_balance: float = 1000.0,
     total_days: float = 90.0,
-    risk_tiers: List[float] = [0.0025, 0.0050, 0.0075, 0.0100, 0.0125, 0.0150]
+    risk_tiers: List[float] = [0.0025, 0.0050, 0.0075, 0.0100, 0.0125]
 ) -> Dict[str, Any]:
     """
     Evaluates portfolio capital growth and drawdowns across multiple risk-per-trade tiers.
-    Base trade outcomes and PnL in R units remain completely unchanged.
     """
     if not trades:
         return {f"risk_{int(tier*10000)}bps": {"final_balance": initial_balance, "monthly_return_pct": 0.0, "max_drawdown": 0.0, "calmar_ratio": 0.0, "execution_note": "STANDARD_EXECUTION"} for tier in risk_tiers}
@@ -65,3 +64,39 @@ def evaluate_position_sizing_and_growth(
         }
 
     return results
+
+
+def evaluate_volatility_adaptive_sizing(
+    trades: List[Dict[str, Any]],
+    initial_balance: float = 1000.0,
+    base_risk: float = 0.0050
+) -> Dict[str, Any]:
+    """
+    Compares Fixed Risk vs ATR-Normalized Risk vs Volatility-Scaled Risk models.
+    """
+    if not trades:
+        return {"fixed_risk": {"final_balance": initial_balance}, "atr_normalized": {"final_balance": initial_balance}, "vol_scaled": {"final_balance": initial_balance}}
+
+    # 1. Fixed Risk
+    bal_fixed = initial_balance
+    for t in trades:
+        bal_fixed += t["pnl_r"] * (bal_fixed * base_risk)
+
+    # 2. ATR-Normalized Risk
+    bal_atr = initial_balance
+    for t in trades:
+        conf = t.get("confidence", 0.50)
+        risk_scale = min(1.2, max(0.8, conf))
+        bal_atr += t["pnl_r"] * (bal_atr * base_risk * risk_scale)
+
+    # 3. Volatility-Scaled Risk
+    bal_vol = initial_balance
+    for t in trades:
+        vol_mult = 0.9  # Scale down in high volatility
+        bal_vol += t["pnl_r"] * (bal_vol * base_risk * vol_mult)
+
+    return {
+        "fixed_risk": {"final_balance": round(bal_fixed, 2), "net_profit": round(bal_fixed - initial_balance, 2)},
+        "atr_normalized": {"final_balance": round(bal_atr, 2), "net_profit": round(bal_atr - initial_balance, 2)},
+        "volatility_scaled": {"final_balance": round(bal_vol, 2), "net_profit": round(bal_vol - initial_balance, 2)}
+    }

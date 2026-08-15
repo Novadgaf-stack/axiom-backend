@@ -1,7 +1,7 @@
 # NEXUS-7 — V19 FROZEN PARAMETER LONG-HORIZON FORWARD VALIDATION REPORT
 
-**Report Generated:** 2026-08-14 17:18:16 UTC  
-**Execution Duration:** 1.39s  
+**Report Generated:** 2026-08-15 08:29:48 UTC  
+**Execution Duration:** 1.46s  
 **EVALUATION HORIZON:** 730 Days (~17,520 Candles / 2 Full Years)  
 **STRATEGY STATUS:** Frozen Parameters (`MIN_CONFIDENCE=88`, `MIN_ADX=25.0`, `ATR SL=1.5`, `ATR Trailing=3.5`, V11 Order-Book Gating)  
 **TRANSACTION COSTS:** Binance Spot Taker Fee 0.10% + Slippage 0.05% + V11 Order-Book Spread Penalty  
@@ -27,7 +27,7 @@
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 | `2026-Q2` | 3 | 33.3% | **0.46** | +$-17.58 | +$-5.86 | -0.04R | 0.3% | 2 |
 | `2026-Q2` | 2 | 50.0% | **0.24** | +$-12.06 | +$-6.03 | -0.03R | 0.2% | 1 |
-| `2026-Q2` | 0 | 0.0% | **0.00** | +$0.00 | +$0.00 | +0.00R | 0.0% | 0 |
+| `2026-Q3` | 0 | 0.0% | **0.00** | +$0.00 | +$0.00 | +0.00R | 0.0% | 0 |
 | `2026-Q3` | 0 | 0.0% | **0.00** | +$0.00 | +$0.00 | +0.00R | 0.0% | 0 |
 | `2026-Q3` | 0 | 0.0% | **0.00** | +$0.00 | +$0.00 | +0.00R | 0.0% | 0 |
 | `2026-Q3` | 4 | 75.0% | **2.64** | +$30.28 | +$7.57 | +0.05R | 0.2% | 1 |

@@ -1,7 +1,7 @@
 """
-Statistical Evaluator Module for NEXUS-7 Research V33
+Statistical Evaluator Module for NEXUS-7 Research V34
 Computes trade statistics, Bootstrap 95% CIs, Sharpe, Sortino, asset concentration,
-evaluates 10 promotion gates, and assigns official research verdicts.
+evaluates promotion gates, and assigns official research verdicts.
 """
 
 from typing import Dict, List, Any, Tuple
@@ -60,7 +60,6 @@ def compute_trade_statistics(
     expectancy_trade = float(np.mean(pnls))
     expectancy_r = float(np.mean(pnls_r))
 
-    # Bootstrap 95% Confidence Interval for Profit Factor
     rng = np.random.default_rng(seed)
     boot_pfs = []
     for _ in range(bootstrap_iterations):
@@ -75,7 +74,6 @@ def compute_trade_statistics(
     ci_lower = float(np.percentile(boot_pfs, 2.5))
     ci_upper = float(np.percentile(boot_pfs, 97.5))
 
-    # Drawdown calculation
     cum_pnls = np.cumsum(pnls)
     equity_curve = initial_balance + np.insert(cum_pnls, 0, 0.0)
     peak = equity_curve[0]
@@ -87,7 +85,6 @@ def compute_trade_statistics(
         if dd > max_dd:
             max_dd = dd
 
-    # Sharpe & Sortino ratios
     daily_returns = pd.Series(pnls).groupby(np.arange(len(pnls)) // 4).sum() / initial_balance
     mean_ret = daily_returns.mean()
     std_ret = daily_returns.std()
@@ -96,7 +93,6 @@ def compute_trade_statistics(
     downside_std = daily_returns[daily_returns < 0].std()
     sortino_ratio = float((mean_ret / (downside_std + 1e-8)) * np.sqrt(365)) if downside_std > 0 else 0.0
 
-    # Longest losing streak
     longest_losing_streak = 0
     current_streak = 0
     for p in pnls:
@@ -107,7 +103,6 @@ def compute_trade_statistics(
         else:
             current_streak = 0
 
-    # Single-asset concentration check
     asset_pnls = df_tr.groupby("asset")["net_pnl"].sum()
     top_asset_pnl = float(asset_pnls.max()) if len(asset_pnls) > 0 else 0.0
     tot_pnl = float(np.sum(pnls))
@@ -140,17 +135,15 @@ def compute_trade_statistics(
 def assign_official_verdict(
     stats: Dict[str, Any],
     wf_positive_windows: int = 0,
+    wf_total_windows: int = 5,
     is_stable: bool = False,
     in_target_frequency_window: bool = False
 ) -> str:
     """
-    Evaluates 10 statistical promotion gates and assigns official verdict:
-    - V33_FORWARD_PAPER_CANDIDATE
-    - ROBUST_EDGE_FOUND
-    - PROMISING_BUT_INSUFFICIENT_SAMPLE
-    - FREQUENCY_EDGE_FOUND_BUT_UNPROFITABLE
-    - PROFITABLE_BUT_NOT_ROBUST
-    - V33_NO_ROBUST_PROFITABLE_EDGE
+    Evaluates promotion gates and assigns official V34 verdict:
+    - V34_ROBUST_PROFITABLE_EDGE_FOUND
+    - V34_PROFITABLE_BUT_NOT_ROBUST
+    - V34_NO_ROBUST_PROFITABLE_EDGE
     """
     total_trades = stats.get("total_trades", 0)
     pf = stats.get("profit_factor", 0.0)
@@ -160,24 +153,22 @@ def assign_official_verdict(
     asset_conc = stats.get("asset_concentration_pct", 0.0)
 
     if total_trades < 30:
-        return "PROMISING_BUT_INSUFFICIENT_SAMPLE"
+        return "V34_NO_ROBUST_PROFITABLE_EDGE"
 
-    # Fully robust candidate promotion criteria
+    wf_pct = wf_positive_windows / max(1, wf_total_windows)
+
     if (
         pf >= 1.25 and
         net_exp > 0 and
         ci_lower > 1.00 and
-        wf_positive_windows >= 3 and
+        wf_pct >= 0.75 and
         is_stable and
         max_dd <= 0.15 and
         asset_conc <= 60.0
     ):
-        return "V33_FORWARD_PAPER_CANDIDATE"
+        return "V34_ROBUST_PROFITABLE_EDGE_FOUND"
 
     if pf > 1.00 and net_exp > 0:
-        return "PROFITABLE_BUT_NOT_ROBUST"
+        return "V34_PROFITABLE_BUT_NOT_ROBUST"
 
-    if in_target_frequency_window and (pf <= 1.00 or net_exp <= 0):
-        return "FREQUENCY_EDGE_FOUND_BUT_UNPROFITABLE"
-
-    return "V33_NO_ROBUST_PROFITABLE_EDGE"
+    return "V34_NO_ROBUST_PROFITABLE_EDGE"
