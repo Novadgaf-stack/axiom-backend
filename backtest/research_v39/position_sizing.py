@@ -1,5 +1,5 @@
 """
-Position Sizing Module for NEXUS-7 Research V38
+Position Sizing Module for NEXUS-7 Research V39
 Implements Stop-Distance Position Sizing models across 0.25%, 0.50%, 0.75%, 1.00% risk budgets.
 """
 
@@ -7,7 +7,7 @@ from typing import Dict, List, Any
 import numpy as np
 
 
-def compute_stop_distance_position_size_v38(
+def compute_stop_distance_position_size_v39(
     equity: float,
     entry_price: float,
     stop_price: float,

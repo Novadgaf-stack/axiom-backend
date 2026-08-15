@@ -1,5 +1,5 @@
 """
-Robustness & Anti-Fragility Testing Module for NEXUS-7 Research V38
+Robustness & Anti-Fragility Testing Module for NEXUS-7 Research V39
 Evaluates parameter perturbations (+/-5%, +/-10%, +/-20%, +/-30%), SL/TP variations,
 execution delays (1-3 bars), and critical anti-fragility removal tests (top 1, 3, 5, 10% trades,
 top 1, 2, 10% assets, best month/regime).
@@ -8,10 +8,10 @@ top 1, 2, 10% assets, best month/regime).
 from typing import Dict, List, Any
 import numpy as np
 import pandas as pd
-from backtest.research_v38.candle_resolver import resolve_zero_stub_trades_v38
+from backtest.research_v39.candle_resolver import resolve_zero_stub_trades_v39
 
 
-def run_parameter_perturbations_v38(
+def run_parameter_perturbations_v39(
     df: pd.DataFrame,
     strategy_fn: Any,
     base_atr_mult: float = 1.5,
@@ -40,7 +40,7 @@ def run_parameter_perturbations_v38(
         adj_rr = base_rr * mult
 
         df_sig = strategy_fn(df, atr_mult_sl=adj_atr, rr_ratio=adj_rr)
-        res = resolve_zero_stub_trades_v38(df_sig)
+        res = resolve_zero_stub_trades_v39(df_sig)
         trades = res["trades"]
 
         pnls = [t["net_pnl"] for t in trades]
@@ -74,7 +74,7 @@ def run_parameter_perturbations_v38(
     }
 
 
-def run_anti_fragility_tests_v38(
+def run_anti_fragility_tests_v39(
     trades: List[Dict[str, Any]]
 ) -> Dict[str, Any]:
     """

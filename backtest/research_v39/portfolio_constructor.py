@@ -1,5 +1,5 @@
 """
-Portfolio Constructor Module for NEXUS-7 Research V38
+Portfolio Constructor Module for NEXUS-7 Research V39
 Handles correlation matrix computation, cluster detection (0.60–0.90 thresholds),
 and enforces aggregate open risk caps, correlated risk caps, and concentration limits.
 """
@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 
 
-def compute_rolling_correlation_matrix_v38(datasets: Dict[str, pd.DataFrame]) -> pd.DataFrame:
+def compute_rolling_correlation_matrix_v39(datasets: Dict[str, pd.DataFrame]) -> pd.DataFrame:
     """Computes daily return correlation matrix across all assets in datasets using past returns."""
     close_dict = {}
     for asset, df in datasets.items():
@@ -25,7 +25,7 @@ def compute_rolling_correlation_matrix_v38(datasets: Dict[str, pd.DataFrame]) ->
     return returns_df.corr().abs().fillna(0.0)
 
 
-def detect_correlation_clusters_v38(
+def detect_correlation_clusters_v39(
     corr_df: pd.DataFrame,
     threshold: float = 0.70
 ) -> Dict[str, List[str]]:
@@ -55,7 +55,7 @@ def detect_correlation_clusters_v38(
     return clusters
 
 
-def enforce_portfolio_risk_caps_v38(
+def enforce_portfolio_risk_caps_v39(
     opportunities: List[Dict[str, Any]],
     corr_df: pd.DataFrame,
     max_simultaneous_positions: int = 5,
@@ -70,7 +70,7 @@ def enforce_portfolio_risk_caps_v38(
     if not opportunities:
         return [], {"selected_count": 0, "rejected_count": 0, "total_risk_pct": 0.0}
 
-    clusters = detect_correlation_clusters_v38(corr_df, threshold=cluster_threshold)
+    clusters = detect_correlation_clusters_v39(corr_df, threshold=cluster_threshold)
     asset_to_cluster = {}
     for c_id, members in clusters.items():
         for m in members:

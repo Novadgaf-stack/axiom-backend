@@ -1,28 +1,26 @@
 """
-Execution Model & Friction Stress Module for NEXUS-7 Research V38
-Evaluates trade performance under elevated friction models (10, 15, 20, 30, 40, 50, 75, 100 bps)
+Execution Model & Friction Stress Module for NEXUS-7 Research V39
+Evaluates trade performance under elevated friction models (10, 20, 30, 50, 75, 100 bps total friction)
 and calculates exact break-even transaction cost limits.
 """
 
 from typing import Dict, List, Any
 import numpy as np
 import pandas as pd
-from backtest.research_v38.candle_resolver import resolve_zero_stub_trades_v38
+from backtest.research_v39.candle_resolver import resolve_zero_stub_trades_v39
 
 
-def run_friction_stress_test_v38(
+def run_friction_stress_test_v39(
     df: pd.DataFrame,
     initial_balance: float = 1000.0
 ) -> Dict[str, Dict[str, Any]]:
     """
-    Stress tests V38 execution across 8 friction levels (10 bps to 100 bps total friction).
+    Stress tests V39 execution across 6 friction levels (10 bps to 100 bps total friction).
     """
     scenarios = {
         "FRICTION_10_BPS":  {"fee": 0.0007, "slip": 0.0003}, # 10 bps
-        "FRICTION_15_BPS":  {"fee": 0.0010, "slip": 0.0005}, # 15 bps
         "FRICTION_20_BPS":  {"fee": 0.0015, "slip": 0.0005}, # 20 bps (Baseline)
         "FRICTION_30_BPS":  {"fee": 0.0020, "slip": 0.0010}, # 30 bps
-        "FRICTION_40_BPS":  {"fee": 0.0030, "slip": 0.0010}, # 40 bps
         "FRICTION_50_BPS":  {"fee": 0.0035, "slip": 0.0015}, # 50 bps
         "FRICTION_75_BPS":  {"fee": 0.0055, "slip": 0.0020}, # 75 bps
         "FRICTION_100_BPS": {"fee": 0.0075, "slip": 0.0025}  # 100 bps
@@ -31,7 +29,7 @@ def run_friction_stress_test_v38(
     results = {}
 
     for sc_name, params in scenarios.items():
-        res = resolve_zero_stub_trades_v38(
+        res = resolve_zero_stub_trades_v39(
             df,
             initial_balance=initial_balance,
             fee_rate=params["fee"],
@@ -69,7 +67,7 @@ def run_friction_stress_test_v38(
     return results
 
 
-def calculate_breakeven_friction_v38(
+def calculate_breakeven_friction_v39(
     df: pd.DataFrame,
     initial_balance: float = 1000.0
 ) -> float:
@@ -82,7 +80,7 @@ def calculate_breakeven_friction_v38(
 
     for _ in range(10):
         mid = (left + right) / 2.0
-        res = resolve_zero_stub_trades_v38(df, initial_balance=initial_balance, fee_rate=mid, slippage=0.0005)
+        res = resolve_zero_stub_trades_v39(df, initial_balance=initial_balance, fee_rate=mid, slippage=0.0005)
         trades = res["trades"]
         if not trades:
             break

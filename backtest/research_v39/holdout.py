@@ -1,16 +1,16 @@
 """
-Final Untouched Holdout Evaluator Module for NEXUS-7 Research V38
+Final Untouched Holdout Evaluator Module for NEXUS-7 Research V39
 Evaluates frozen best strategy on completely untouched 20% holdout period EXACTLY ONCE.
-Generates strategy_research/V38_FINAL_HOLDOUT_REPORT.md.
+Generates strategy_research/V39_FINAL_HOLDOUT_REPORT.md.
 """
 
 from typing import Dict, List, Any
 import os
 import pandas as pd
-from backtest.research_v38.candle_resolver import resolve_zero_stub_trades_v38
-from backtest.research_v38.statistical_evaluator import compute_trade_statistics_v38
-from backtest.research_v38.bootstrap import run_bootstrap_resampling_v38
-from backtest.research_v38.monte_carlo import run_monte_carlo_simulations_v38
+from backtest.research_v39.candle_resolver import resolve_zero_stub_trades_v39
+from backtest.research_v39.statistical_evaluator import compute_trade_statistics_v39
+from backtest.research_v39.bootstrap import run_bootstrap_resampling_v39
+from backtest.research_v39.monte_carlo import run_monte_carlo_simulations_v39
 
 
 def evaluate_final_untouched_holdout(
@@ -24,21 +24,21 @@ def evaluate_final_untouched_holdout(
     """
     os.makedirs(output_dir, exist_ok=True)
     df_sig = strategy_fn(holdout_df)
-    res = resolve_zero_stub_trades_v38(df_sig)
+    res = resolve_zero_stub_trades_v39(df_sig)
     trades = res["trades"]
 
     n_bars = len(holdout_df)
     tf = str(holdout_df["timeframe"].iloc[0]) if "timeframe" in holdout_df.columns else "1h"
     total_days = max(1.0, n_bars / (24 if tf == "1h" else 48 if tf == "30m" else 96 if tf == "15m" else 6))
 
-    stats = compute_trade_statistics_v38(trades, total_days=total_days)
+    stats = compute_trade_statistics_v39(trades, total_days=total_days)
 
     pnls = [t["net_pnl"] for t in trades]
-    bs_res = run_bootstrap_resampling_v38(pnls, iterations=10000)
-    mc_res = run_monte_carlo_simulations_v38(pnls, iterations=10000)
+    bs_res = run_bootstrap_resampling_v39(pnls, iterations=10000)
+    mc_res = run_monte_carlo_simulations_v39(pnls, iterations=10000)
 
-    report_path = os.path.join(output_dir, "V38_FINAL_HOLDOUT_REPORT.md")
-    report_content = f"""# NEXUS-7 Research V38 — Frozen Final Untouched Holdout Report
+    report_path = os.path.join(output_dir, "V39_FINAL_HOLDOUT_REPORT.md")
+    report_content = f"""# NEXUS-7 Research V39 — Frozen Final Untouched Holdout Report
 
 ## Official Holdout Evaluation: `{strategy_name}`
 

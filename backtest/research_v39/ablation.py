@@ -1,5 +1,5 @@
 """
-Component Ablation Study Module for NEXUS-7 Research V38
+Component Ablation Study Module for NEXUS-7 Research V39
 Removes components one at a time to determine actual edge attribution:
 signal, regime filter, volume filter, liquidity filter, ranking, correlation filter,
 portfolio selection, stop logic, take-profit logic, time stop.
@@ -8,15 +8,15 @@ portfolio selection, stop logic, take-profit logic, time stop.
 from typing import Dict, List, Any
 import numpy as np
 import pandas as pd
-from backtest.research_v38.candle_resolver import resolve_zero_stub_trades_v38
+from backtest.research_v39.candle_resolver import resolve_zero_stub_trades_v39
 
 
-def run_component_ablation_study_v38(
+def run_component_ablation_study_v39(
     df: pd.DataFrame,
     initial_balance: float = 1000.0
 ) -> Dict[str, Dict[str, Any]]:
     """
-    Executes one-at-a-time component ablation study on V38 strategy pipeline.
+    Executes one-at-a-time component ablation study on V39 strategy pipeline.
     """
     ablations = [
         "FULL_SYSTEM",
@@ -36,9 +36,9 @@ def run_component_ablation_study_v38(
 
     for name in ablations:
         if name == "WITHOUT_SIGNAL_FILTER":
-            res = resolve_zero_stub_trades_v38(df, initial_balance=initial_balance, fee_rate=0.0, slippage=0.0)
+            res = resolve_zero_stub_trades_v39(df, initial_balance=initial_balance, fee_rate=0.0, slippage=0.0)
         else:
-            res = resolve_zero_stub_trades_v38(df, initial_balance=initial_balance)
+            res = resolve_zero_stub_trades_v39(df, initial_balance=initial_balance)
 
         trades = res["trades"]
         if not trades:

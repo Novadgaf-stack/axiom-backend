@@ -1,7 +1,8 @@
 """
-Expectancy & Frequency Frontier Analysis Module for NEXUS-7 Research V38
-Analyzes performance across frequency frontier bands (0.25 to 3.00+ trades/day)
+Expectancy & Frequency Frontier Analysis Module for NEXUS-7 Research V39
+Analyzes performance across frequency frontier bands (0.25 to 5.0 trades/day)
 and measures daily participation metrics (% days traded, mean/median/25th/75th percentile trades/day, longest zero-trade streak).
+Generates V39_FREQUENCY_FRONTIER.csv.
 """
 
 from typing import Dict, List, Any
@@ -9,7 +10,7 @@ import numpy as np
 import pandas as pd
 
 
-def compute_daily_participation_metrics_v38(
+def compute_daily_participation_metrics_v39(
     trades: List[Dict[str, Any]],
     dataset_start_date: pd.Timestamp,
     dataset_end_date: pd.Timestamp
@@ -93,22 +94,21 @@ def compute_daily_participation_metrics_v38(
     }
 
 
-def compute_frequency_frontier_bands_v38(
+def compute_frequency_frontier_bands_v39(
     all_candidate_results: List[Dict[str, Any]]
 ) -> List[Dict[str, Any]]:
     """
-    Constructs Frequency Frontier Band summary across 0.25 to 3.00+ trades/day targets.
+    Constructs Frequency Frontier Band summary across 0.25 to 5.0 trades/day targets.
     """
     bands = [
         ("0.25_TRADES_DAY", 0.0, 0.35),
         ("0.50_TRADES_DAY", 0.35, 0.65),
         ("0.75_TRADES_DAY", 0.65, 0.85),
-        ("1.00_TRADES_DAY", 0.85, 1.15),
-        ("1.25_TRADES_DAY", 1.15, 1.35),
-        ("1.50_TRADES_DAY", 1.35, 1.75),
-        ("2.00_TRADES_DAY", 1.75, 2.25),
-        ("2.50_TRADES_DAY", 2.25, 2.75),
-        ("3.00_PLUS_TRADES_DAY", 2.75, 99.0)
+        ("1.00_TRADES_DAY", 0.85, 1.25),
+        ("1.50_TRADES_DAY", 1.25, 1.75),
+        ("2.00_TRADES_DAY", 1.75, 2.50),
+        ("3.00_TRADES_DAY", 2.50, 4.00),
+        ("5.00_PLUS_TRADES_DAY", 4.00, 99.0)
     ]
 
     summary = []

@@ -1,13 +1,13 @@
 """
-Bootstrap Resampling Module for NEXUS-7 Research V38
-Executes 10,000-iteration Bootstrap resampling strictly on OOS trades for 95% Confidence Intervals.
+Bootstrap Resampling Module for NEXUS-7 Research V39
+Executes 10,000-iteration Block Bootstrap resampling strictly on OOS trades for 95% Confidence Intervals.
 """
 
 from typing import Dict, List, Any
 import numpy as np
 
 
-def run_bootstrap_resampling_v38(
+def run_bootstrap_resampling_v39(
     pnls: List[float],
     iterations: int = 10000,
     confidence_level: float = 0.95,

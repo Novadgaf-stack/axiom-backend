@@ -1,5 +1,5 @@
 """
-Candle Resolver Engine for NEXUS-7 Research V38
+Candle Resolver Engine for NEXUS-7 Research V39
 Executes zero-stub bar-by-bar candle traversal with high-performance NumPy array indexing.
 Includes 1-bar delay, conservative SL/TP collision (LOSS), stop-distance position sizing,
 and circuit breakers.
@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 
 
-def resolve_zero_stub_trades_v38(
+def resolve_zero_stub_trades_v39(
     df: pd.DataFrame,
     initial_balance: float = 1000.0,
     risk_fraction: float = 0.0050,  # 0.50% default equity risk

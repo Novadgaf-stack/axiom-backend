@@ -1,14 +1,16 @@
 """
-Multiple Testing Control & Data-Mining Bias Module for NEXUS-7 Research V38
-Tracks number of hypotheses and parameter configurations evaluated,
-and computes Deflated Sharpe Ratio (DSR) and Family-Wise Error Rate (FWER) corrections.
+Multiple Testing Control & Data-Mining Bias Module for NEXUS-7 Research V39
+Tracks research tree (strategies, parameters, timeframes, universes, selection rules),
+and computes Deflated Sharpe Ratio (DSR) and False Discovery Rate (FDR) corrections.
+Generates V39_MULTIPLE_TESTING.csv.
 """
 
 from typing import Dict, List, Any
 import numpy as np
+import pandas as pd
 
 
-def compute_deflated_sharpe_ratio(
+def compute_deflated_sharpe_ratio_v39(
     observed_sharpe: float,
     num_trials: int,
     variance_sharpe: float = 1.0,
@@ -21,6 +23,7 @@ def compute_deflated_sharpe_ratio(
         return {
             "trials_tested": num_trials,
             "observed_sharpe": observed_sharpe,
+            "expected_max_null_sharpe": 0.0,
             "deflated_sharpe_ratio": observed_sharpe,
             "dsr_p_value": 0.50,
             "dsr_passed": observed_sharpe > 0
