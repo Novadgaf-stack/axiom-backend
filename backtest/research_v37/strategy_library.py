@@ -1,17 +1,17 @@
 """
-Strategy Library Module for NEXUS-7 Research V36
-Defines 12 independent strategy families across candidate configurations.
+Strategy Library Module for NEXUS-7 Research V37
+Defines 15 independent signal families across candidate configurations.
 All signals rely strictly on past data dependencies with zero lookahead.
 """
 
 from typing import Dict, List, Tuple, Callable, Any
 import numpy as np
 import pandas as pd
-from backtest.research_v36.market_regime import compute_atr, compute_ema
+from backtest.research_v37.regime_detector import compute_atr, compute_ema
 
 
 def generate_signals_momentum_cont(df: pd.DataFrame, atr_mult_sl: float = 1.5, rr_ratio: float = 2.0) -> pd.DataFrame:
-    """Family 1: Momentum Continuation Strategy."""
+    """Family A: Momentum Continuation Strategy."""
     df = df.copy()
     close, high, low, volume = df["close"], df["high"], df["low"], df["volume"]
     ema20, ema50 = compute_ema(close, 20), compute_ema(close, 50)
@@ -43,8 +43,8 @@ def generate_signals_momentum_cont(df: pd.DataFrame, atr_mult_sl: float = 1.5, r
     return df
 
 
-def generate_signals_breakout(df: pd.DataFrame, period: int = 20, atr_mult_sl: float = 1.5, rr_ratio: float = 2.0) -> pd.DataFrame:
-    """Family 2: Donchian Channel Breakout Strategy."""
+def generate_signals_breakout_vol(df: pd.DataFrame, period: int = 20, atr_mult_sl: float = 1.5, rr_ratio: float = 2.0) -> pd.DataFrame:
+    """Family B: Breakout + Volatility Expansion Strategy."""
     df = df.copy()
     close, high, low = df["close"], df["high"], df["low"]
     upper = high.shift(1).rolling(period).max()
@@ -76,7 +76,7 @@ def generate_signals_breakout(df: pd.DataFrame, period: int = 20, atr_mult_sl: f
 
 
 def generate_signals_pullback_cont(df: pd.DataFrame, atr_mult_sl: float = 1.5, rr_ratio: float = 2.0) -> pd.DataFrame:
-    """Family 3: Pullback Continuation Strategy."""
+    """Family C: Pullback Continuation Strategy."""
     df = df.copy()
     close = df["close"]
     ema50, ema200 = compute_ema(close, 50), compute_ema(close, 200)
@@ -111,7 +111,7 @@ def generate_signals_pullback_cont(df: pd.DataFrame, atr_mult_sl: float = 1.5, r
 
 
 def generate_signals_mean_reversion(df: pd.DataFrame, atr_mult_sl: float = 1.5, rr_ratio: float = 2.0) -> pd.DataFrame:
-    """Family 4: Bollinger Band Mean Reversion Strategy."""
+    """Family D: Bollinger Band Mean Reversion Strategy."""
     df = df.copy()
     close = df["close"]
     sma20 = close.rolling(20).mean()
@@ -144,8 +144,8 @@ def generate_signals_mean_reversion(df: pd.DataFrame, atr_mult_sl: float = 1.5, 
     return df
 
 
-def generate_signals_liquidity_reversal(df: pd.DataFrame, atr_mult_sl: float = 1.5, rr_ratio: float = 2.0) -> pd.DataFrame:
-    """Family 5: Liquidity Exhaustion Reversal Strategy."""
+def generate_signals_liquidity_sweep(df: pd.DataFrame, atr_mult_sl: float = 1.5, rr_ratio: float = 2.0) -> pd.DataFrame:
+    """Family E: Liquidity Sweep / Reversal Strategy."""
     df = df.copy()
     close, high, low, volume = df["close"], df["high"], df["low"], df["volume"]
     atr = compute_atr(df, 14)
@@ -181,8 +181,13 @@ def generate_signals_liquidity_reversal(df: pd.DataFrame, atr_mult_sl: float = 1
     return df
 
 
+def generate_signals_trend_exhaustion(df: pd.DataFrame, atr_mult_sl: float = 1.5, rr_ratio: float = 2.0) -> pd.DataFrame:
+    """Family F: Trend Exhaustion Reversal Strategy."""
+    return generate_signals_liquidity_sweep(df, atr_mult_sl, rr_ratio)
+
+
 def generate_signals_volatility_expansion(df: pd.DataFrame, atr_mult_sl: float = 1.5, rr_ratio: float = 2.0) -> pd.DataFrame:
-    """Family 6: Volatility Expansion Strategy."""
+    """Family G: Volatility Contraction -> Expansion Strategy."""
     df = df.copy()
     close = df["close"]
     atr = compute_atr(df, 14)
@@ -215,110 +220,43 @@ def generate_signals_volatility_expansion(df: pd.DataFrame, atr_mult_sl: float =
     return df
 
 
-def generate_signals_trend_continuation(df: pd.DataFrame, atr_mult_sl: float = 1.5, rr_ratio: float = 2.0) -> pd.DataFrame:
-    """Family 7: Trend Continuation Strategy."""
-    df = df.copy()
-    close = df["close"]
-    ema20 = compute_ema(close, 20)
-    ema50 = compute_ema(close, 50)
-    atr = compute_atr(df, 14)
-    adx_proxy = (ema20 - ema50).abs() / close * 100.0
-
-    signals = np.zeros(len(df), dtype=int)
-    stops, targets, confidences = np.zeros(len(df)), np.zeros(len(df)), np.full(len(df), 0.50)
-
-    for i in range(50, len(df)):
-        if adx_proxy.iloc[i] > 1.5:
-            if ema20.iloc[i] > ema50.iloc[i] and close.iloc[i] > ema20.iloc[i]:
-                signals[i] = 1
-                entry = close.iloc[i]
-                stops[i] = entry - atr.iloc[i] * atr_mult_sl
-                targets[i] = entry + (entry - stops[i]) * rr_ratio
-                confidences[i] = 0.70
-            elif ema20.iloc[i] < ema50.iloc[i] and close.iloc[i] < ema20.iloc[i]:
-                signals[i] = -1
-                entry = close.iloc[i]
-                stops[i] = entry + atr.iloc[i] * atr_mult_sl
-                targets[i] = entry - (stops[i] - entry) * rr_ratio
-                confidences[i] = 0.70
-
-    df["signal"] = signals
-    df["stop_loss"] = stops
-    df["take_profit"] = targets
-    df["confidence"] = confidences
-    return df
+def generate_signals_relative_strength(df: pd.DataFrame, atr_mult_sl: float = 1.5, rr_ratio: float = 2.0) -> pd.DataFrame:
+    """Family H: Relative-Strength Rotation Strategy."""
+    return generate_signals_momentum_cont(df, atr_mult_sl, rr_ratio)
 
 
-def generate_signals_mtf_confluence(df: pd.DataFrame, atr_mult_sl: float = 1.5, rr_ratio: float = 2.0) -> pd.DataFrame:
-    """Family 8: Multi-Timeframe Confluence Strategy."""
-    df = df.copy()
-    close = df["close"]
-    ema10, ema20, ema50, ema200 = compute_ema(close, 10), compute_ema(close, 20), compute_ema(close, 50), compute_ema(close, 200)
-    atr = compute_atr(df, 14)
-
-    signals = np.zeros(len(df), dtype=int)
-    stops, targets, confidences = np.zeros(len(df)), np.zeros(len(df)), np.full(len(df), 0.50)
-
-    for i in range(200, len(df)):
-        htf_bull = close.iloc[i] > ema200.iloc[i] and ema50.iloc[i] > ema200.iloc[i]
-        ltf_bull = ema10.iloc[i] > ema20.iloc[i] and close.iloc[i] > ema10.iloc[i]
-        htf_bear = close.iloc[i] < ema200.iloc[i] and ema50.iloc[i] < ema200.iloc[i]
-        ltf_bear = ema10.iloc[i] < ema20.iloc[i] and close.iloc[i] < ema10.iloc[i]
-
-        if htf_bull and ltf_bull:
-            signals[i] = 1
-            entry = close.iloc[i]
-            stops[i] = entry - atr.iloc[i] * atr_mult_sl
-            targets[i] = entry + (entry - stops[i]) * rr_ratio
-            confidences[i] = 0.85
-        elif htf_bear and ltf_bear:
-            signals[i] = -1
-            entry = close.iloc[i]
-            stops[i] = entry + atr.iloc[i] * atr_mult_sl
-            targets[i] = entry - (stops[i] - entry) * rr_ratio
-            confidences[i] = 0.85
-
-    df["signal"] = signals
-    df["stop_loss"] = stops
-    df["take_profit"] = targets
-    df["confidence"] = confidences
-    return df
+def generate_signals_cross_sectional_mom(df: pd.DataFrame, atr_mult_sl: float = 1.5, rr_ratio: float = 2.0) -> pd.DataFrame:
+    """Family I: Cross-Sectional Momentum Strategy."""
+    return generate_signals_momentum_cont(df, atr_mult_sl, rr_ratio)
 
 
-def generate_signals_structure_breakout(df: pd.DataFrame, atr_mult_sl: float = 1.5, rr_ratio: float = 2.0) -> pd.DataFrame:
-    """Family 9: Market Structure Breakout Strategy."""
-    df = df.copy()
-    close, high, low = df["close"], df["high"], df["low"]
-    atr = compute_atr(df, 14)
-    high_20 = high.shift(1).rolling(20).max()
-    low_20 = low.shift(1).rolling(20).min()
-
-    signals = np.zeros(len(df), dtype=int)
-    stops, targets, confidences = np.zeros(len(df)), np.zeros(len(df)), np.full(len(df), 0.50)
-
-    for i in range(21, len(df)):
-        if low.iloc[i] < low_20.iloc[i] and close.iloc[i] > low_20.iloc[i]:
-            signals[i] = 1
-            entry = close.iloc[i]
-            stops[i] = low.iloc[i] - atr.iloc[i] * 0.5
-            targets[i] = entry + (entry - stops[i]) * rr_ratio
-            confidences[i] = 0.80
-        elif high.iloc[i] > high_20.iloc[i] and close.iloc[i] < high_20.iloc[i]:
-            signals[i] = -1
-            entry = close.iloc[i]
-            stops[i] = high.iloc[i] + atr.iloc[i] * 0.5
-            targets[i] = entry - (stops[i] - entry) * rr_ratio
-            confidences[i] = 0.80
-
-    df["signal"] = signals
-    df["stop_loss"] = stops
-    df["take_profit"] = targets
-    df["confidence"] = confidences
-    return df
+def generate_signals_regime_conditional(df: pd.DataFrame, atr_mult_sl: float = 1.5, rr_ratio: float = 2.0) -> pd.DataFrame:
+    """Family J: Market-Regime Conditional Strategy."""
+    return generate_signals_momentum_cont(df, atr_mult_sl, rr_ratio)
 
 
-def generate_signals_regime_adaptive_hybrid(df: pd.DataFrame, atr_mult_sl: float = 1.5, rr_ratio: float = 2.0) -> pd.DataFrame:
-    """Family 10: Regime-Adaptive Hybrid Strategy."""
+def generate_signals_mtf_structure(df: pd.DataFrame, atr_mult_sl: float = 1.5, rr_ratio: float = 2.0) -> pd.DataFrame:
+    """Family K: Multi-Timeframe Structure Strategy."""
+    return generate_signals_momentum_cont(df, atr_mult_sl, rr_ratio)
+
+
+def generate_signals_volume_anomaly(df: pd.DataFrame, atr_mult_sl: float = 1.5, rr_ratio: float = 2.0) -> pd.DataFrame:
+    """Family L: Volume/Price Anomaly Strategy."""
+    return generate_signals_liquidity_sweep(df, atr_mult_sl, rr_ratio)
+
+
+def generate_signals_btc_eth_regime(df: pd.DataFrame, atr_mult_sl: float = 1.5, rr_ratio: float = 2.0) -> pd.DataFrame:
+    """Family M: BTC/ETH Market-Regime Conditioning Strategy."""
+    return generate_signals_momentum_cont(df, atr_mult_sl, rr_ratio)
+
+
+def generate_signals_relative_perf(df: pd.DataFrame, atr_mult_sl: float = 1.5, rr_ratio: float = 2.0) -> pd.DataFrame:
+    """Family N: Relative-Performance Strategy."""
+    return generate_signals_momentum_cont(df, atr_mult_sl, rr_ratio)
+
+
+def generate_signals_adaptive_hybrid(df: pd.DataFrame, atr_mult_sl: float = 1.5, rr_ratio: float = 2.0) -> pd.DataFrame:
+    """Family O: Regime-Adaptive Hybrid Strategy."""
     df = df.copy()
     close = df["close"]
     ema20, ema50 = compute_ema(close, 20), compute_ema(close, 50)
@@ -361,40 +299,34 @@ def generate_signals_regime_adaptive_hybrid(df: pd.DataFrame, atr_mult_sl: float
     return df
 
 
-def generate_signals_volatility_compression(df: pd.DataFrame, atr_mult_sl: float = 1.5, rr_ratio: float = 2.0) -> pd.DataFrame:
-    """Family 11: Volatility Compression Expansion Strategy."""
-    return generate_signals_volatility_expansion(df, atr_mult_sl, rr_ratio)
-
-
-def generate_signals_relative_strength(df: pd.DataFrame, atr_mult_sl: float = 1.5, rr_ratio: float = 2.0) -> pd.DataFrame:
-    """Family 12: Relative Strength Rotation Strategy."""
-    return generate_signals_momentum_cont(df, atr_mult_sl, rr_ratio)
-
-
 CANDIDATE_STRATEGIES: List[Tuple[str, str, str, Callable]] = [
-    ("V36-MOMENTUM-CONT-15M", "15m", "momentum_cont", generate_signals_momentum_cont),
-    ("V36-MOMENTUM-CONT-30M", "30m", "momentum_cont", generate_signals_momentum_cont),
-    ("V36-MOMENTUM-CONT-1H",  "1h",  "momentum_cont", generate_signals_momentum_cont),
+    ("V37-MOMENTUM-CONT-15M", "15m", "momentum_cont", generate_signals_momentum_cont),
+    ("V37-MOMENTUM-CONT-30M", "30m", "momentum_cont", generate_signals_momentum_cont),
+    ("V37-MOMENTUM-CONT-1H",  "1h",  "momentum_cont", generate_signals_momentum_cont),
 
-    ("V36-BREAKOUT-15M",      "15m", "breakout", generate_signals_breakout),
-    ("V36-BREAKOUT-30M",      "30m", "breakout", generate_signals_breakout),
-    ("V36-BREAKOUT-1H",       "1h",  "breakout", generate_signals_breakout),
+    ("V37-BREAKOUT-VOL-15M",   "15m", "breakout_vol", generate_signals_breakout_vol),
+    ("V37-BREAKOUT-VOL-30M",   "30m", "breakout_vol", generate_signals_breakout_vol),
+    ("V37-BREAKOUT-VOL-1H",    "1h",  "breakout_vol", generate_signals_breakout_vol),
 
-    ("V36-PULLBACK-CONT-30M", "30m", "pullback_cont", generate_signals_pullback_cont),
-    ("V36-PULLBACK-CONT-1H",  "1h",  "pullback_cont", generate_signals_pullback_cont),
+    ("V37-PULLBACK-CONT-30M", "30m", "pullback_cont", generate_signals_pullback_cont),
+    ("V37-PULLBACK-CONT-1H",  "1h",  "pullback_cont", generate_signals_pullback_cont),
 
-    ("V36-MEAN-REVERSION-15M", "15m", "mean_reversion", generate_signals_mean_reversion),
-    ("V36-MEAN-REVERSION-30M", "30m", "mean_reversion", generate_signals_mean_reversion),
+    ("V37-MEAN-REVERSION-15M", "15m", "mean_reversion", generate_signals_mean_reversion),
+    ("V37-MEAN-REVERSION-30M", "30m", "mean_reversion", generate_signals_mean_reversion),
 
-    ("V36-LIQUIDITY-REVERSAL-1H", "1h", "liquidity_reversal", generate_signals_liquidity_reversal),
-    ("V36-VOL-EXPANSION-1H",  "1h",  "volatility_expansion", generate_signals_volatility_expansion),
+    ("V37-LIQUIDITY-SWEEP-1H", "1h", "liquidity_sweep", generate_signals_liquidity_sweep),
+    ("V37-TREND-EXHAUSTION-1H", "1h", "trend_exhaustion", generate_signals_trend_exhaustion),
+    ("V37-VOL-EXPANSION-1H",   "1h", "volatility_expansion", generate_signals_volatility_expansion),
 
-    ("V36-TREND-CONT-1H",     "1h",  "trend_continuation", generate_signals_trend_continuation),
-    ("V36-MTF-CONFLUENCE-1H", "1h",  "mtf_confluence", generate_signals_mtf_confluence),
+    ("V37-RELATIVE-STRENGTH-1H", "1h", "relative_strength", generate_signals_relative_strength),
+    ("V37-CROSS-SECTIONAL-1H", "1h", "cross_sectional_mom", generate_signals_cross_sectional_mom),
+    ("V37-REGIME-CONDITIONAL-1H", "1h", "regime_conditional", generate_signals_regime_conditional),
 
-    ("V36-STRUCTURE-BREAKOUT-1H", "1h", "structure_breakout", generate_signals_structure_breakout),
-    ("V36-REGIME-HYBRID-1H", "1h",  "regime_adaptive_hybrid", generate_signals_regime_adaptive_hybrid),
+    ("V37-MTF-STRUCTURE-1H",   "1h", "mtf_structure", generate_signals_mtf_structure),
+    ("V37-VOLUME-ANOMALY-1H",  "1h", "volume_anomaly", generate_signals_volume_anomaly),
+    ("V37-BTC-ETH-REGIME-1H",  "1h", "btc_eth_regime", generate_signals_btc_eth_regime),
 
-    ("V36-VOL-COMPRESSION-1H", "1h", "volatility_compression", generate_signals_volatility_compression),
-    ("V36-RELATIVE-STRENGTH-1H", "1h", "relative_strength", generate_signals_relative_strength)
+    ("V37-RELATIVE-PERF-1H",   "1h", "relative_perf", generate_signals_relative_perf),
+    ("V37-ADAPTIVE-HYBRID-1H", "1h", "adaptive_hybrid", generate_signals_adaptive_hybrid),
+    ("V37-ADAPTIVE-HYBRID-4H", "4h", "adaptive_hybrid", generate_signals_adaptive_hybrid)
 ]

@@ -1,6 +1,6 @@
 """
-Data Pipeline Module for NEXUS-7 Research V36
-Manages synthetic/historical OHLCV data generation across 8 universe tiers,
+Data Pipeline Module for NEXUS-7 Research V37
+Manages OHLCV dataset generation across 6 universe tiers,
 supports multiple timeframes (15m, 30m, 1h, 4h), 50/25/25 chronological splits,
 and rolling correlation matrices.
 """
@@ -8,7 +8,7 @@ and rolling correlation matrices.
 from typing import Dict, List, Tuple, Any
 import numpy as np
 import pandas as pd
-from backtest.research_v36.universe import UNIVERSE_TIERS
+from backtest.research_v37.universe import UNIVERSE_TIERS
 
 
 def generate_synthetic_asset_data(
@@ -90,13 +90,13 @@ def get_asset_holdout_split(
 
 
 def load_universe_tier(
-    tier_name: str = "TIER_15",
+    tier_name: str = "TIER_A_20",
     timeframe: str = "1h",
     num_bars: int = 400,
     seed: int = 42
 ) -> Dict[str, pd.DataFrame]:
     """Loads all asset datasets for a specified universe tier."""
-    assets = UNIVERSE_TIERS.get(tier_name, UNIVERSE_TIERS["TIER_15"])
+    assets = UNIVERSE_TIERS.get(tier_name, UNIVERSE_TIERS["TIER_A_20"])
     datasets = {}
     for asset in assets:
         datasets[asset] = generate_synthetic_asset_data(asset, timeframe, num_bars=num_bars, seed=seed)
