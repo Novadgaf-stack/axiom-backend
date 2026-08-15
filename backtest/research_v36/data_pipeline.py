@@ -1,28 +1,14 @@
 """
-Data Pipeline Module for NEXUS-7 Research V35
-Manages 6 liquid universe tiers (20, 30, 50, 75, 100, 150 assets),
-liquidity pre-filtering, 50/25/25 chronological partitioning, and rolling return correlations.
+Data Pipeline Module for NEXUS-7 Research V36
+Manages synthetic/historical OHLCV data generation across 8 universe tiers,
+supports multiple timeframes (15m, 30m, 1h, 4h), 50/25/25 chronological splits,
+and rolling correlation matrices.
 """
 
 from typing import Dict, List, Tuple, Any
 import numpy as np
 import pandas as pd
-
-UNIVERSE_TIERS = {
-    "TIER_1": [f"COIN_{i:03d}" for i in range(1, 21)],    # 20 assets
-    "TIER_2": [f"COIN_{i:03d}" for i in range(1, 31)],    # 30 assets
-    "TIER_3": [f"COIN_{i:03d}" for i in range(1, 51)],    # 50 assets
-    "TIER_4": [f"COIN_{i:03d}" for i in range(1, 76)],    # 75 assets
-    "TIER_5": [f"COIN_{i:03d}" for i in range(1, 101)],   # 100 assets
-    "TIER_6": [f"COIN_{i:03d}" for i in range(1, 151)]    # 150 assets
-}
-
-# Override top coins for realism
-UNIVERSE_TIERS["TIER_1"][0] = "BTC"
-UNIVERSE_TIERS["TIER_1"][1] = "ETH"
-UNIVERSE_TIERS["TIER_1"][2] = "SOL"
-UNIVERSE_TIERS["TIER_1"][3] = "AVAX"
-UNIVERSE_TIERS["TIER_1"][4] = "BNB"
+from backtest.research_v36.universe import UNIVERSE_TIERS
 
 
 def generate_synthetic_asset_data(
@@ -75,40 +61,10 @@ def validate_and_clean_ohlcv(df: pd.DataFrame) -> pd.DataFrame:
     return df.sort_values("timestamp").reset_index(drop=True)
 
 
-def apply_liquidity_filter(
-    datasets: Dict[str, pd.DataFrame],
-    min_avg_daily_volume: float = 1000000.0,
-    max_zero_volume_pct: float = 0.05
-) -> Tuple[Dict[str, pd.DataFrame], List[str], Dict[str, int]]:
-    """Filters out low-volume, illiquid, or gapped assets."""
-    eligible = {}
-    rejected = []
-
-    for asset, df in datasets.items():
-        if len(df) < 50:
-            rejected.append(asset)
-            continue
-
-        daily_vol = df["volume"].mean() * 24
-        zero_vol_pct = (df["volume"] <= 0).mean()
-
-        if daily_vol >= min_avg_daily_volume and zero_vol_pct <= max_zero_volume_pct:
-            eligible[asset] = df
-        else:
-            rejected.append(asset)
-
-    counts = {
-        "UNIVERSE_SIZE": len(datasets),
-        "TRADEABLE_UNIVERSE_SIZE": len(eligible),
-        "REJECTED_UNIVERSE_SIZE": len(rejected)
-    }
-    return eligible, rejected, counts
-
-
 def split_dataset_chronological(
     df: pd.DataFrame
 ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """Splits dataset into 50% Train/Calibration, 25% Validation, 25% Untouched OOS."""
+    """Splits dataset into 50% Train, 25% Validation, 25% Untouched Locked OOS."""
     n = len(df)
     train_end = int(n * 0.50)
     val_end = int(n * 0.75)
@@ -134,13 +90,13 @@ def get_asset_holdout_split(
 
 
 def load_universe_tier(
-    tier_name: str = "TIER_1",
+    tier_name: str = "TIER_15",
     timeframe: str = "1h",
-    num_bars: int = 300,
+    num_bars: int = 400,
     seed: int = 42
 ) -> Dict[str, pd.DataFrame]:
     """Loads all asset datasets for a specified universe tier."""
-    assets = UNIVERSE_TIERS.get(tier_name, UNIVERSE_TIERS["TIER_1"])
+    assets = UNIVERSE_TIERS.get(tier_name, UNIVERSE_TIERS["TIER_15"])
     datasets = {}
     for asset in assets:
         datasets[asset] = generate_synthetic_asset_data(asset, timeframe, num_bars=num_bars, seed=seed)
@@ -148,7 +104,7 @@ def load_universe_tier(
 
 
 def compute_rolling_correlation_matrix(datasets: Dict[str, pd.DataFrame]) -> pd.DataFrame:
-    """Computes daily return correlation matrix across all assets in datasets."""
+    """Computes daily return correlation matrix across all assets in datasets using past returns."""
     close_dict = {}
     for asset, df in datasets.items():
         if len(df) > 0:

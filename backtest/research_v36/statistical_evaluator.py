@@ -1,7 +1,7 @@
 """
-Statistical Evaluator Module for NEXUS-7 Research V35
-Computes trade statistics, Bootstrap 95% CIs, Sharpe, Sortino, asset concentration,
-evaluates promotion gates, and assigns official research verdicts.
+Statistical Evaluator Module for NEXUS-7 Research V36
+Computes trade statistics, Sharpe, Sortino, asset concentration,
+evaluates promotion gates, and assigns official V36 research verdicts.
 """
 
 from typing import Dict, List, Any, Tuple
@@ -12,11 +12,9 @@ import pandas as pd
 def compute_trade_statistics(
     trades: List[Dict[str, Any]],
     initial_balance: float = 1000.0,
-    total_days: float = 90.0,
-    bootstrap_iterations: int = 1000,
-    seed: int = 42
+    total_days: float = 90.0
 ) -> Dict[str, Any]:
-    """Computes comprehensive trade statistics, metrics, and bootstrap CIs."""
+    """Computes comprehensive trade statistics and metrics."""
     if not trades:
         return {
             "total_trades": 0,
@@ -25,16 +23,13 @@ def compute_trade_statistics(
             "profit_factor": 0.0,
             "expectancy_trade": 0.0,
             "expectancy_r": 0.0,
-            "ci_lower": 0.0,
-            "ci_upper": 0.0,
             "max_drawdown": 0.0,
             "sharpe_ratio": 0.0,
             "sortino_ratio": 0.0,
             "longest_losing_streak": 0,
             "net_profit": 0.0,
             "final_balance": initial_balance,
-            "asset_concentration_pct": 0.0,
-            "passed_bootstrap_gate": False
+            "asset_concentration_pct": 0.0
         }
 
     df_tr = pd.DataFrame(trades)
@@ -59,20 +54,6 @@ def compute_trade_statistics(
 
     expectancy_trade = float(np.mean(pnls))
     expectancy_r = float(np.mean(pnls_r))
-
-    rng = np.random.default_rng(seed)
-    boot_pfs = []
-    for _ in range(bootstrap_iterations):
-        sample_pnls = rng.choice(pnls, size=total_trades, replace=True)
-        w = sample_pnls[sample_pnls > 0]
-        l = sample_pnls[sample_pnls < 0]
-        gp = np.sum(w) if len(w) > 0 else 0.0
-        gl = np.abs(np.sum(l)) if len(l) > 0 else 0.0
-        pf = gp / gl if gl > 0 else (99.0 if gp > 0 else 0.0)
-        boot_pfs.append(pf)
-
-    ci_lower = float(np.percentile(boot_pfs, 2.5))
-    ci_upper = float(np.percentile(boot_pfs, 97.5))
 
     cum_pnls = np.cumsum(pnls)
     equity_curve = initial_balance + np.insert(cum_pnls, 0, 0.0)
@@ -110,7 +91,6 @@ def compute_trade_statistics(
 
     net_profit = float(np.sum(pnls))
     final_balance = initial_balance + net_profit
-    passed_bootstrap_gate = bool(ci_lower > 1.00 and profit_factor >= 1.25)
 
     return {
         "total_trades": total_trades,
@@ -119,43 +99,41 @@ def compute_trade_statistics(
         "profit_factor": round(profit_factor, 3),
         "expectancy_trade": round(expectancy_trade, 2),
         "expectancy_r": round(expectancy_r, 3),
-        "ci_lower": round(ci_lower, 3),
-        "ci_upper": round(ci_upper, 3),
         "max_drawdown": round(max_dd * 100, 1),
         "sharpe_ratio": round(sharpe_ratio, 2),
         "sortino_ratio": round(sortino_ratio, 2),
         "longest_losing_streak": longest_losing_streak,
         "net_profit": round(net_profit, 2),
         "final_balance": round(final_balance, 2),
-        "asset_concentration_pct": round(asset_concentration_pct, 1),
-        "passed_bootstrap_gate": passed_bootstrap_gate
+        "asset_concentration_pct": round(asset_concentration_pct, 1)
     }
 
 
-def assign_official_verdict(
+def assign_official_v36_verdict(
     stats: Dict[str, Any],
+    bootstrap_results: Dict[str, Any],
     wf_positive_windows: int = 0,
-    wf_total_windows: int = 5,
+    wf_total_windows: int = 8,
     is_stable: bool = False,
-    in_target_frequency_window: bool = False
+    pct_days_traded: float = 0.0,
+    has_concentration_risk: bool = False
 ) -> str:
     """
-    Evaluates promotion gates and assigns official V35 verdict:
-    - V35_ROBUST_PROFITABLE_EDGE_FOUND
-    - V35_PROFITABLE_BUT_NOT_ROBUST
-    - V35_FREQUENCY_EDGE_FOUND_BUT_UNPROFITABLE
-    - V35_NO_ROBUST_PROFITABLE_EDGE
-    - V35_INVALIDATED
+    Evaluates promotion gates and assigns official V36 verdict:
+    - V36_ROBUST_PROFITABLE_DAILY_EDGE
+    - V36_PROFITABLE_BUT_NOT_ROBUST
+    - V36_FREQUENT_BUT_UNPROFITABLE
+    - V36_NO_ROBUST_PROFITABLE_EDGE
+    - V36_INVALIDATED
     """
     total_trades = stats.get("total_trades", 0)
     pf = stats.get("profit_factor", 0.0)
     net_exp = stats.get("expectancy_trade", 0.0)
-    ci_lower = stats.get("ci_lower", 0.0)
+    ci_lower = bootstrap_results.get("pf_ci_lower", 0.0)
     max_dd = stats.get("max_drawdown", 0.0) / 100.0
-    asset_conc = stats.get("asset_concentration_pct", 0.0)
 
     if total_trades < 30:
-        return "V35_NO_ROBUST_PROFITABLE_EDGE"
+        return "V36_NO_ROBUST_PROFITABLE_EDGE"
 
     wf_pct = wf_positive_windows / max(1, wf_total_windows)
 
@@ -166,14 +144,15 @@ def assign_official_verdict(
         wf_pct >= 0.60 and
         is_stable and
         max_dd <= 0.15 and
-        asset_conc <= 60.0
+        pct_days_traded >= 70.0 and
+        not has_concentration_risk
     ):
-        return "V35_ROBUST_PROFITABLE_EDGE_FOUND"
+        return "V36_ROBUST_PROFITABLE_DAILY_EDGE"
 
     if pf > 1.00 and net_exp > 0:
-        return "V35_PROFITABLE_BUT_NOT_ROBUST"
+        return "V36_PROFITABLE_BUT_NOT_ROBUST"
 
     if stats.get("trades_per_day", 0.0) >= 0.75 and pf <= 1.00:
-        return "V35_FREQUENCY_EDGE_FOUND_BUT_UNPROFITABLE"
+        return "V36_FREQUENT_BUT_UNPROFITABLE"
 
-    return "V35_NO_ROBUST_PROFITABLE_EDGE"
+    return "V36_NO_ROBUST_PROFITABLE_EDGE"

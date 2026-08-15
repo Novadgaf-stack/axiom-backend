@@ -1,11 +1,11 @@
 """
-Candle Resolver Engine for NEXUS-7 Research V35
+Candle Resolver Engine for NEXUS-7 Research V36
 Executes zero-stub bar-by-bar candle traversal with high-performance NumPy array indexing.
 Includes 1-bar delay, 0.15% fees, 0.05% slippage, conservative SL/TP collision (LOSS),
 stop-distance position sizing, consecutive-loss step-downs, and circuit breakers.
 """
 
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any, Optional
 import numpy as np
 import pandas as pd
 

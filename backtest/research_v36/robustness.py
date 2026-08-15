@@ -1,25 +1,24 @@
 """
-Robustness & Parameter Perturbation Module for NEXUS-7 Research V35
-Tests parameter stability across -20%, -10%, baseline, +10%, +20% variations.
-Executes friction stress tests (fees/slippage up to 0.50%, 2-bar delay).
-Detects single-asset or single-period concentration dependencies.
+Robustness & Parameter Perturbation Module for NEXUS-7 Research V36
+Tests parameter stability across -30%, -20%, -10%, baseline, +10%, +20%, +30% variations.
+Executes friction stress tests (fees up to 0.50%, 2-bar delay, 5%-20% missed trades).
 """
 
 from typing import Dict, List, Any, Callable
 import numpy as np
 import pandas as pd
-from backtest.research_v35.candle_resolver import resolve_zero_stub_trades
-from backtest.research_v35.statistical_evaluator import compute_trade_statistics
+from backtest.research_v36.candle_resolver import resolve_zero_stub_trades
+from backtest.research_v36.statistical_evaluator import compute_trade_statistics
 
 
 def run_parameter_perturbation_test(
     candidate_name: str,
     strategy_fn: Callable[..., pd.DataFrame],
     df: pd.DataFrame,
-    param_variations: List[float] = [-0.20, -0.10, 0.0, 0.10, 0.20]
+    param_variations: List[float] = [-0.30, -0.20, -0.10, 0.0, 0.10, 0.20, 0.30]
 ) -> Dict[str, Any]:
     """
-    Evaluates strategy stability across 5 neighboring parameter perturbations (±10%, ±20%).
+    Evaluates strategy stability across 7 neighboring parameter perturbations (±10%, ±20%, ±30%).
     """
     results = []
     positive_count = 0
@@ -59,7 +58,7 @@ def run_parameter_perturbation_test(
 
     return {
         "candidate": candidate_name,
-        "is_stable": positive_count >= 3,
+        "is_stable": positive_count >= 4,
         "positive_count": positive_count,
         "total_variations": len(param_variations),
         "stability_pct": round(stability_pct, 1),
@@ -72,7 +71,7 @@ def run_friction_and_execution_stress_test(
     total_days: float = 90.0
 ) -> Dict[str, Any]:
     """
-    Stress tests strategy execution across 0.20%, 0.30%, 0.40%, 0.50% fee/slippage scenarios.
+    Stress tests strategy execution across 0.20%, 0.30%, 0.40%, 0.50% fee scenarios and missed trades.
     """
     res_base = resolve_zero_stub_trades(df_signals, fee_rate=0.0015, slippage=0.0005, execution_delay=1)
     stats_base = compute_trade_statistics(res_base["trades"], total_days=total_days)

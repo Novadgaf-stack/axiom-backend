@@ -1,6 +1,6 @@
 """
-Monte Carlo Simulation Module for NEXUS-7 Research V35
-Executes 2,000-iteration trade-sequence shuffle simulations.
+Monte Carlo Simulation Module for NEXUS-7 Research V36
+Executes 5,000-iteration 2D matrix trade-sequence shuffle simulations.
 Derives return and drawdown distributions, losing streak probabilities, and risk of ruin.
 High-performance 2D matrix vectorized NumPy implementation.
 """
@@ -13,11 +13,11 @@ import pandas as pd
 def run_monte_carlo_resampling(
     trades: List[Dict[str, Any]],
     initial_balance: float = 1000.0,
-    iterations: int = 2000,
+    iterations: int = 5000,
     seed: int = 42
 ) -> Dict[str, Any]:
     """
-    Executes 2,000 trade-sequence shuffle Monte Carlo simulations.
+    Executes 5,000 trade-sequence shuffle Monte Carlo simulations.
     2D matrix vectorized NumPy implementation for sub-second execution.
     """
     if not trades:
@@ -29,10 +29,10 @@ def run_monte_carlo_resampling(
             "median_max_dd": 0.0,
             "dd_95th_percentile": 0.0,
             "dd_99th_percentile": 0.0,
+            "prob_dd_over_5": 0.0,
             "prob_dd_over_10": 0.0,
             "prob_dd_over_15": 0.0,
             "prob_dd_over_20": 0.0,
-            "prob_dd_over_30": 0.0,
             "risk_of_ruin_50pct": 0.0,
             "prob_ending_negative": 0.0,
             "losing_streak_95th": 0
@@ -76,10 +76,10 @@ def run_monte_carlo_resampling(
         "median_max_dd": round(float(np.median(max_dds_arr)), 2),
         "dd_95th_percentile": round(float(np.percentile(max_dds_arr, 95)), 2),
         "dd_99th_percentile": round(float(np.percentile(max_dds_arr, 99)), 2),
+        "prob_dd_over_5": round(float(np.mean(max_dds_arr > 5.0) * 100.0), 1),
         "prob_dd_over_10": round(float(np.mean(max_dds_arr > 10.0) * 100.0), 1),
         "prob_dd_over_15": round(float(np.mean(max_dds_arr > 15.0) * 100.0), 1),
         "prob_dd_over_20": round(float(np.mean(max_dds_arr > 20.0) * 100.0), 1),
-        "prob_dd_over_30": round(float(np.mean(max_dds_arr > 30.0) * 100.0), 1),
         "risk_of_ruin_50pct": round(float(np.mean(max_dds_arr > 50.0) * 100.0), 1),
         "prob_ending_negative": round(float(np.mean(returns_arr < 0.0) * 100.0), 1),
         "losing_streak_95th": int(np.percentile(losing_streaks, 95))

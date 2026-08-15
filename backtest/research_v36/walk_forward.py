@@ -1,25 +1,25 @@
 """
-Walk-Forward Validation Module for NEXUS-7 Research V35
-Runs 5-window chronological rolling walk-forward validation with purging and embargoing.
-Requires >= 3/5 positive windows for statistical promotion.
+Walk-Forward Validation Module for NEXUS-7 Research V36
+Runs 8 to 10 window chronological rolling walk-forward validation with purging and embargoing.
+Requires >= 60-70% positive windows for statistical promotion.
 """
 
 from typing import Dict, List, Any, Callable
 import numpy as np
 import pandas as pd
-from backtest.research_v35.candle_resolver import resolve_zero_stub_trades
-from backtest.research_v35.statistical_evaluator import compute_trade_statistics
+from backtest.research_v36.candle_resolver import resolve_zero_stub_trades
+from backtest.research_v36.statistical_evaluator import compute_trade_statistics
 
 
 def run_walk_forward_validation(
     df: pd.DataFrame,
     strategy_fn: Callable[[pd.DataFrame], pd.DataFrame],
-    num_windows: int = 5,
+    num_windows: int = 8,
     embargo_bars: int = 12,
     execution_delay: int = 1
 ) -> Dict[str, Any]:
     """
-    Executes 5-window chronological rolling walk-forward evaluation with purging/embargoing.
+    Executes 8 to 10 window chronological rolling walk-forward evaluation with purging/embargoing.
     """
     n = len(df)
     window_size = n // num_windows
