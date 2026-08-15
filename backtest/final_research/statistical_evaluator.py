@@ -90,7 +90,7 @@ def evaluate_promotion_gates_final(
     """
     Checks machine-readable promotion gates for ROBUST_PROFITABLE.
     Possible Verdicts: ROBUST_PROFITABLE, PROMISING_BUT_INSUFFICIENT_SAMPLE,
-    PROFITABLE_BUT_NOT_ROBUST, FRAGILE, NO_ROBUST_EDGE_FOUND.
+    PROFITABLE_BUT_NOT_ROBUST, FRAGILE, NO_DEFENDED_EDGE.
     """
     reasons = []
 
@@ -102,7 +102,7 @@ def evaluate_promotion_gates_final(
         reasons.append("Non-positive net expectancy or PF <= 1.0")
 
     if n_trades < 30:
-        reasons.append("Insufficient trade sample (N < 30)")
+        reasons.append("Insufficient trade sample (N < 30 required)")
 
     if bootstrap.get("pf_ci_lower", 0.0) <= 1.0:
         reasons.append("Bootstrap 95% CI lower bound <= 1.0")
@@ -126,4 +126,5 @@ def evaluate_promotion_gates_final(
     elif pf > 0 and n_trades > 0:
         return "FRAGILE", reasons
     else:
-        return "NO_ROBUST_EDGE_FOUND", reasons
+        return "NO_DEFENDED_EDGE", reasons
+

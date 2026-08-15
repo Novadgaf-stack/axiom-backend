@@ -34,7 +34,7 @@ def build_expectancy_frequency_frontier_final(
             "profit_factor": 0.0,
             "net_expectancy_usd": 0.0,
             "max_drawdown_pct": 0.0,
-            "verdict": "NO_ROBUST_EDGE_FOUND"
+            "verdict": "NO_DEFENDED_EDGE"
         }
 
     for res in strategy_results:

@@ -16,7 +16,7 @@
 - **Daily Participation**: **33.3%** of days participating
 - **Win Rate**: **54.5%**
 - **Profit Factor**: **1.44**
-- **Bootstrap 95% CI**: `[0.385, 5.8]` (10,000 iterations)
+- **Bootstrap 95% CI**: `[0.375, 5.787]` (10,000 iterations)
 - **Net Expectancy**: **$12.206** per trade
 - **Max Drawdown**: **1.48%**
 - **Monte Carlo 95% DD**: **2.4%** (10,000 iterations)
@@ -27,13 +27,13 @@
 
 | Frequency Band | Best Strategy | Trades/Day | Profit Factor | Net Exp ($) | Max DD (%) | Verdict |
 | :--- | :---: | :---: | :---: | :---: | :---: | :--- |
-| **LESS_THAN_0.25_TRADES_DAY** | NONE | 0.0 | **0.0** | $0.0 | 0.0% | `NO_ROBUST_EDGE_FOUND` |
+| **LESS_THAN_0.25_TRADES_DAY** | NONE | 0.0 | **0.0** | $0.0 | 0.0% | `NO_DEFENDED_EDGE` |
 | **0.25_TO_0.50_TRADES_DAY** | FINAL-LIQUIDITY-REVERSAL-1H | 0.37 | **1.44** | $12.206 | 1.48% | `PROMISING_BUT_INSUFFICIENT_SAMPLE` |
-| **0.50_TO_1.00_TRADES_DAY** | NONE | 0.0 | **0.0** | $0.0 | 0.0% | `NO_ROBUST_EDGE_FOUND` |
-| **1.00_TO_1.50_TRADES_DAY** | NONE | 0.0 | **0.0** | $0.0 | 0.0% | `NO_ROBUST_EDGE_FOUND` |
-| **1.50_TO_2.00_TRADES_DAY** | NONE | 0.0 | **0.0** | $0.0 | 0.0% | `NO_ROBUST_EDGE_FOUND` |
-| **2.00_TO_3.00_TRADES_DAY** | NONE | 0.0 | **0.0** | $0.0 | 0.0% | `NO_ROBUST_EDGE_FOUND` |
-| **3.00_PLUS_TRADES_DAY** | NONE | 0.0 | **0.0** | $0.0 | 0.0% | `NO_ROBUST_EDGE_FOUND` |
+| **0.50_TO_1.00_TRADES_DAY** | NONE | 0.0 | **0.0** | $0.0 | 0.0% | `NO_DEFENDED_EDGE` |
+| **1.00_TO_1.50_TRADES_DAY** | NONE | 0.0 | **0.0** | $0.0 | 0.0% | `NO_DEFENDED_EDGE` |
+| **1.50_TO_2.00_TRADES_DAY** | NONE | 0.0 | **0.0** | $0.0 | 0.0% | `NO_DEFENDED_EDGE` |
+| **2.00_TO_3.00_TRADES_DAY** | NONE | 0.0 | **0.0** | $0.0 | 0.0% | `NO_DEFENDED_EDGE` |
+| **3.00_PLUS_TRADES_DAY** | NONE | 0.0 | **0.0** | $0.0 | 0.0% | `NO_DEFENDED_EDGE` |
 
 ## 3. Final Master Recommendation
 

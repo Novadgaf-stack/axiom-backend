@@ -214,5 +214,7 @@ def test_final_full_pipeline_execution():
         "PROMISING_BUT_INSUFFICIENT_SAMPLE",
         "PROFITABLE_BUT_NOT_ROBUST",
         "FRAGILE",
+        "NO_DEFENDED_EDGE",
         "NO_ROBUST_EDGE_FOUND"
     ]
+
