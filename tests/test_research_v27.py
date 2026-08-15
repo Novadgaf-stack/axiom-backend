@@ -105,3 +105,14 @@ def test_v27_full_pipeline_execution():
     assert "summary_results" in res
     assert os.path.exists("strategy_research/v27_expectancy_summary.csv")
     assert os.path.exists("strategy_research/V27_EXPECTANCY_AND_PAPER_TRADING_REPORT.md")
+
+
+def test_v27_forensic_audit_execution():
+    from backtest.research_v27.forensic_audit import run_forensic_audit
+    res = run_forensic_audit(days=30, seed=42)
+    assert "verdict" in res
+    assert res["verdict"] in ["V27_INVALIDATED", "V27_INDEPENDENTLY_VERIFIED"]
+    assert "true_metrics" in res
+    assert "bootstrap_results" in res
+    assert os.path.exists("strategy_research/V27_FORENSIC_AUDIT_REPORT.md")
+
