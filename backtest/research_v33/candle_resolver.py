@@ -1,8 +1,9 @@
 """
-Candle Resolver Engine for NEXUS-7 Research V32
+Candle Resolver Engine for NEXUS-7 Research V33
 Executes zero-stub bar-by-bar candle traversal, 1-bar delay, realistic fees & slippage,
 conservative SL/TP collision handling, stop-distance position sizing,
 and consecutive-loss & circuit breaker risk controls.
+High-performance NumPy vectorized array access.
 """
 
 from typing import Dict, List, Any, Optional, Tuple
@@ -24,7 +25,7 @@ def resolve_zero_stub_trades(
     correlation_penalty_mult: float = 1.0
 ) -> Dict[str, Any]:
     """
-    Zero-stub candle traversal engine.
+    Zero-stub candle traversal engine optimized with NumPy arrays.
     Derives all trade outcomes exclusively from subsequent OHLC price action.
     Implements consecutive-loss protections and circuit breakers.
     """
@@ -36,6 +37,20 @@ def resolve_zero_stub_trades(
             "final_balance": initial_balance,
             "max_drawdown": 0.0
         }
+
+    # Extract NumPy arrays for fast sub-millisecond indexing
+    timestamps = df["timestamp"].values
+    opens = df["open"].values
+    highs = df["high"].values
+    lows = df["low"].values
+    closes = df["close"].values
+    signals = df["signal"].values.astype(int)
+    stop_losses = df["stop_loss"].values if "stop_loss" in df.columns else np.zeros(n)
+    take_profits = df["take_profit"].values if "take_profit" in df.columns else np.zeros(n)
+    confidences = df["confidence"].values if "confidence" in df.columns else np.full(n, 0.50)
+
+    asset_name = str(df["asset"].iloc[0]) if "asset" in df.columns else "BTC"
+    tf_name = str(df["timeframe"].iloc[0]) if "timeframe" in df.columns else "1h"
 
     balance = initial_balance
     equity_curve = [balance]
@@ -53,11 +68,9 @@ def resolve_zero_stub_trades(
 
     i = 0
     while i < n:
-        row = df.iloc[i]
-        timestamp = row["timestamp"]
-        signal = int(row["signal"])
+        timestamp = timestamps[i]
+        signal = signals[i]
 
-        # Update daily/weekly tracking for circuit breakers
         ts_dt = pd.to_datetime(timestamp)
         day_date = ts_dt.date()
         year_week = (ts_dt.year, ts_dt.isocalendar()[1])
@@ -83,10 +96,9 @@ def resolve_zero_stub_trades(
             if entry_bar_idx >= n:
                 break
 
-            entry_row = df.iloc[entry_bar_idx]
-            raw_entry = entry_row["open"]
-            raw_sl = row["stop_loss"]
-            raw_tp = row["take_profit"]
+            raw_entry = opens[entry_bar_idx]
+            raw_sl = stop_losses[i]
+            raw_tp = take_profits[i]
 
             if raw_sl <= 0 or raw_tp <= 0:
                 i += 1
@@ -105,24 +117,21 @@ def resolve_zero_stub_trades(
             # Consecutive loss risk step-down
             effective_risk_pct = min(risk_fraction, max_risk_cap) * correlation_penalty_mult
             if consecutive_losses >= 5:
-                effective_risk_pct = min(effective_risk_pct, 0.0025)  # Step-down to 0.25% after 5 losses
+                effective_risk_pct = min(effective_risk_pct, 0.0025)
             if consecutive_losses >= 8:
                 paused_for_review = True
                 i += 1
                 continue
 
-            # Position Sizing: Risk_USD = Balance * Risk_Pct -> Units = Risk_USD / Stop_Dist
             risk_usd = balance * effective_risk_pct
             position_units = risk_usd / stop_dist
 
-            # Enforce max position equity cap (notional exposure)
             max_units = (balance * max_position_equity_pct) / entry_price
             position_units = min(position_units, max_units)
 
             position_usd = position_units * entry_price
             entry_fee = position_usd * (fee_rate / 2.0)
 
-            # Traverse subsequent candles to find SL / TP exit
             exit_price = None
             exit_time = None
             exit_reason = None
@@ -130,17 +139,15 @@ def resolve_zero_stub_trades(
             trade_hit = False
 
             for j in range(entry_bar_idx, min(entry_bar_idx + 100, n)):
-                c_row = df.iloc[j]
-                c_high = c_row["high"]
-                c_low = c_row["low"]
-                c_time = c_row["timestamp"]
+                c_high = highs[j]
+                c_low = lows[j]
+                c_time = timestamps[j]
 
                 if direction == 1: # LONG
                     sl_hit = c_low <= raw_sl
                     tp_hit = c_high >= raw_tp
 
                     if sl_hit and tp_hit:
-                        # Collision handling: conservative LOSS
                         exit_price = raw_sl * (1.0 - slippage)
                         exit_reason = "SL_TP_COLLISION"
                         trade_hit = True
@@ -158,7 +165,6 @@ def resolve_zero_stub_trades(
                     tp_hit = c_low <= raw_tp
 
                     if sl_hit and tp_hit:
-                        # Collision handling: conservative LOSS
                         exit_price = raw_sl * (1.0 + slippage)
                         exit_reason = "SL_TP_COLLISION"
                         trade_hit = True
@@ -177,13 +183,11 @@ def resolve_zero_stub_trades(
                     break
 
             if not trade_hit:
-                # Time-based exit at end of window
                 exit_bar_idx = min(entry_bar_idx + 100, n - 1)
-                last_row = df.iloc[exit_bar_idx]
-                raw_exit = last_row["close"]
+                raw_exit = closes[exit_bar_idx]
                 exit_price = raw_exit * (1.0 - slippage) if direction == 1 else raw_exit * (1.0 + slippage)
                 exit_reason = "TIME_EXPIRATION"
-                exit_time = last_row["timestamp"]
+                exit_time = timestamps[exit_bar_idx]
 
             exit_usd = position_units * exit_price
             exit_fee = exit_usd * (fee_rate / 2.0)
@@ -203,10 +207,10 @@ def resolve_zero_stub_trades(
             pnl_r = net_pnl / risk_usd if risk_usd > 0 else 0.0
 
             trades.append({
-                "entry_time": entry_row["timestamp"],
+                "entry_time": timestamps[entry_bar_idx],
                 "exit_time": exit_time,
-                "asset": df["asset"].iloc[0] if "asset" in df.columns else "BTC",
-                "timeframe": df["timeframe"].iloc[0] if "timeframe" in df.columns else "1h",
+                "asset": asset_name,
+                "timeframe": tf_name,
                 "direction": "LONG" if direction == 1 else "SHORT",
                 "entry_price": entry_price,
                 "exit_price": exit_price,
@@ -218,11 +222,10 @@ def resolve_zero_stub_trades(
                 "net_pnl": net_pnl,
                 "pnl_r": pnl_r,
                 "exit_reason": exit_reason,
-                "confidence": row.get("confidence", 0.50),
+                "confidence": confidences[i],
                 "bars_held": exit_bar_idx - entry_bar_idx + 1
             })
 
-            # Advance i past trade exit
             i = exit_bar_idx + 1
             continue
 

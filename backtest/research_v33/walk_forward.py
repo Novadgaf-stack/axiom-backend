@@ -1,5 +1,5 @@
 """
-Walk-Forward Validation Module for NEXUS-7 Research V32
+Walk-Forward Validation Module for NEXUS-7 Research V33
 Runs 4-window chronological rolling walk-forward validation.
 Requires >= 3/4 profitable windows for statistical promotion.
 """
@@ -7,8 +7,8 @@ Requires >= 3/4 profitable windows for statistical promotion.
 from typing import Dict, List, Any, Callable
 import numpy as np
 import pandas as pd
-from backtest.research_v32.candle_resolver import resolve_zero_stub_trades
-from backtest.research_v32.statistical_evaluator import compute_trade_statistics
+from backtest.research_v33.candle_resolver import resolve_zero_stub_trades
+from backtest.research_v33.statistical_evaluator import compute_trade_statistics
 
 
 def run_walk_forward_validation(

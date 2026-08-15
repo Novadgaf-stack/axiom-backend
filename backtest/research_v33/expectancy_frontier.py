@@ -1,7 +1,7 @@
 """
-Expectancy Frontier & Pareto Optimization Module for NEXUS-7 Research V32
-Constructs frequency band breakdown (<0.5, 0.5-1.0, 1.0-1.5, 1.5-2.0, 2.0-3.0, 3.0-4.0, 4.0+)
-and ranks candidates by multi-factor statistical score.
+Expectancy Frontier & Universe Expansion Evaluation Module for NEXUS-7 Research V33
+Evaluates universe size scaling (12 vs 20 vs 30 vs 50 vs 75+ assets) and constructs Pareto frontier.
+Identifies safest, highest expectancy, highest sustainable frequency, and best growth/drawdown candidates.
 """
 
 from typing import Dict, List, Any
@@ -10,13 +10,15 @@ import pandas as pd
 
 
 FREQUENCY_BANDS = [
-    ("< 0.5/day", 0.0, 0.5),
-    ("0.5-1.0/day", 0.5, 1.0),
-    ("1.0-1.5/day", 1.0, 1.5),
-    ("1.5-2.0/day", 1.5, 2.0),
-    ("2.0-3.0/day", 2.0, 3.0),
-    ("3.0-4.0/day", 3.0, 4.0),
-    ("4.0+/day", 4.0, 999.0)
+    ("< 0.25/day", 0.0, 0.25),
+    ("0.25-0.50/day", 0.25, 0.50),
+    ("0.50-0.75/day", 0.50, 0.75),
+    ("0.75-1.00/day", 0.75, 1.00),
+    ("1.00-1.50/day", 1.00, 1.50),
+    ("1.50-2.00/day", 1.50, 2.00),
+    ("2.00-3.00/day", 2.00, 3.00),
+    ("3.00-4.00/day", 3.00, 4.00),
+    ("4.00+/day", 4.00, 999.0)
 ]
 
 
@@ -28,12 +30,39 @@ def classify_frequency_band(trades_per_day: float) -> str:
     return "4.0+/day"
 
 
+def evaluate_universe_expansion_impact(
+    universe_evaluations: Dict[str, Dict[str, Any]]
+) -> List[Dict[str, Any]]:
+    """
+    Compares performance, opportunity frequency, expectancy preservation, and drawdown across 12, 20, 30, 50, 75+ asset universes.
+    """
+    comparison = []
+
+    for tier_name, res in universe_evaluations.items():
+        stats = res.get("stats", {})
+        comparison.append({
+            "universe_tier": tier_name,
+            "num_assets": res.get("num_assets", 12),
+            "eligible_assets": res.get("eligible_count", 12),
+            "rejected_assets": res.get("rejected_count", 0),
+            "trades_per_day": stats.get("trades_per_day", 0.0),
+            "total_trades": stats.get("total_trades", 0),
+            "win_rate": stats.get("win_rate", 0.0),
+            "profit_factor": stats.get("profit_factor", 0.0),
+            "expectancy_usd": stats.get("expectancy_trade", 0.0),
+            "max_drawdown": stats.get("max_drawdown", 0.0),
+            "asset_concentration_pct": stats.get("asset_concentration_pct", 0.0),
+            "expectancy_preserved": "YES" if stats.get("profit_factor", 0.0) >= 1.00 else "NO"
+        })
+
+    return comparison
+
+
 def build_expectancy_frontier(
     evaluations: List[Dict[str, Any]]
 ) -> Dict[str, Any]:
     """
     Constructs Pareto frontier breakdown and ranks candidates by multi-factor score.
-    Score = Profit_Factor * 0.35 + Win_Rate * 0.15 + (1 / (1 + Max_DD)) * 0.20 + Min(Trades/Day, 4.0) * 0.15 + (CI_Lower > 1.0) * 0.15
     """
     frontier_table = []
 
@@ -52,9 +81,8 @@ def build_expectancy_frontier(
         verdict = ev["verdict"]
 
         freq_band = classify_frequency_band(tpd)
-        in_preferred_window = "YES" if 1.5 <= tpd <= 4.0 else "NO"
 
-        # Multi-factor score
+        # Multi-factor robustness score
         score = (
             pf * 0.35 +
             (wr / 100.0) * 0.15 +
@@ -68,7 +96,6 @@ def build_expectancy_frontier(
             "timeframe": tf,
             "family": family,
             "freq_band": freq_band,
-            "in_preferred_window": in_preferred_window,
             "trades_per_day": tpd,
             "win_rate": wr,
             "profit_factor": pf,
@@ -83,30 +110,25 @@ def build_expectancy_frontier(
     # Sort candidates by robustness score descending
     sorted_table = sorted(frontier_table, key=lambda x: x["robustness_score"], reverse=True)
 
-    # Determine leading candidates
     best_prof = max(sorted_table, key=lambda x: x["profit_factor"]) if sorted_table else None
-    best_freq_in_window = [x for x in sorted_table if x["in_preferred_window"] == "YES" and x["profit_factor"] > 1.00]
-    leading_window_cand = max(best_freq_in_window, key=lambda x: x["trades_per_day"]) if best_freq_in_window else None
+    safest_cand = min(sorted_table, key=lambda x: x["max_drawdown"]) if sorted_table else None
 
-    # Overall verdict
-    has_paper_ready = any(x["verdict"] == "FORWARD_PAPER_READY" for x in sorted_table)
+    # Determine overall verdict
+    has_paper_ready = any(x["verdict"] == "V33_FORWARD_PAPER_CANDIDATE" for x in sorted_table)
     has_robust = any(x["verdict"] == "ROBUST_EDGE_FOUND" for x in sorted_table)
-    has_freq_unprof = any(x["verdict"] == "FREQUENCY_EDGE_FOUND_BUT_UNPROFITABLE" for x in sorted_table)
 
     if has_paper_ready:
-        overall_verdict = "FORWARD_PAPER_READY"
+        overall_verdict = "V33_FORWARD_PAPER_CANDIDATE"
     elif has_robust:
         overall_verdict = "ROBUST_EDGE_FOUND"
-    elif has_freq_unprof and not any(x["profit_factor"] >= 1.25 for x in sorted_table):
-        overall_verdict = "FREQUENCY_EDGE_FOUND_BUT_UNPROFITABLE"
-    elif any(x["profit_factor"] > 1.00 for x in sorted_table):
+    elif any(x["profit_factor"] > 1.00 and x["trades_per_day"] >= 0.3 for x in sorted_table):
         overall_verdict = "PROFITABLE_BUT_NOT_ROBUST"
     else:
-        overall_verdict = "NO_ROBUST_PROFITABLE_EDGE_FOUND"
+        overall_verdict = "V33_NO_ROBUST_PROFITABLE_EDGE"
 
     return {
         "frontier_table": sorted_table,
         "best_profitable": best_prof,
-        "best_frequency_in_window": leading_window_cand,
+        "safest_candidate": safest_cand,
         "overall_verdict": overall_verdict
     }

@@ -1,6 +1,6 @@
 """
-Statistical Evaluator Module for NEXUS-7 Research V32
-Computes trade statistics, Bootstrap 95% CIs, Sharpe, Sortino,
+Statistical Evaluator Module for NEXUS-7 Research V33
+Computes trade statistics, Bootstrap 95% CIs, Sharpe, Sortino, asset concentration,
 evaluates 10 promotion gates, and assigns official research verdicts.
 """
 
@@ -33,6 +33,7 @@ def compute_trade_statistics(
             "longest_losing_streak": 0,
             "net_profit": 0.0,
             "final_balance": initial_balance,
+            "asset_concentration_pct": 0.0,
             "passed_bootstrap_gate": False
         }
 
@@ -106,6 +107,12 @@ def compute_trade_statistics(
         else:
             current_streak = 0
 
+    # Single-asset concentration check
+    asset_pnls = df_tr.groupby("asset")["net_pnl"].sum()
+    top_asset_pnl = float(asset_pnls.max()) if len(asset_pnls) > 0 else 0.0
+    tot_pnl = float(np.sum(pnls))
+    asset_concentration_pct = (top_asset_pnl / tot_pnl * 100.0) if tot_pnl > 0 else 0.0
+
     net_profit = float(np.sum(pnls))
     final_balance = initial_balance + net_profit
     passed_bootstrap_gate = bool(ci_lower > 1.00)
@@ -125,6 +132,7 @@ def compute_trade_statistics(
         "longest_losing_streak": longest_losing_streak,
         "net_profit": round(net_profit, 2),
         "final_balance": round(final_balance, 2),
+        "asset_concentration_pct": round(asset_concentration_pct, 1),
         "passed_bootstrap_gate": passed_bootstrap_gate
     }
 
@@ -137,32 +145,34 @@ def assign_official_verdict(
 ) -> str:
     """
     Evaluates 10 statistical promotion gates and assigns official verdict:
-    - FORWARD_PAPER_READY
+    - V33_FORWARD_PAPER_CANDIDATE
     - ROBUST_EDGE_FOUND
     - PROMISING_BUT_INSUFFICIENT_SAMPLE
     - FREQUENCY_EDGE_FOUND_BUT_UNPROFITABLE
     - PROFITABLE_BUT_NOT_ROBUST
-    - NO_ROBUST_PROFITABLE_EDGE_FOUND
+    - V33_NO_ROBUST_PROFITABLE_EDGE
     """
     total_trades = stats.get("total_trades", 0)
     pf = stats.get("profit_factor", 0.0)
     net_exp = stats.get("expectancy_trade", 0.0)
     ci_lower = stats.get("ci_lower", 0.0)
     max_dd = stats.get("max_drawdown", 0.0) / 100.0
+    asset_conc = stats.get("asset_concentration_pct", 0.0)
 
     if total_trades < 30:
         return "PROMISING_BUT_INSUFFICIENT_SAMPLE"
 
-    # Fully robust paper ready criteria
+    # Fully robust candidate promotion criteria
     if (
         pf >= 1.25 and
         net_exp > 0 and
         ci_lower > 1.00 and
         wf_positive_windows >= 3 and
         is_stable and
-        max_dd <= 0.15
+        max_dd <= 0.15 and
+        asset_conc <= 60.0
     ):
-        return "FORWARD_PAPER_READY" if in_target_frequency_window else "ROBUST_EDGE_FOUND"
+        return "V33_FORWARD_PAPER_CANDIDATE"
 
     if pf > 1.00 and net_exp > 0:
         return "PROFITABLE_BUT_NOT_ROBUST"
@@ -170,4 +180,4 @@ def assign_official_verdict(
     if in_target_frequency_window and (pf <= 1.00 or net_exp <= 0):
         return "FREQUENCY_EDGE_FOUND_BUT_UNPROFITABLE"
 
-    return "NO_ROBUST_PROFITABLE_EDGE_FOUND"
+    return "V33_NO_ROBUST_PROFITABLE_EDGE"

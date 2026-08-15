@@ -1,5 +1,5 @@
 """
-Monte Carlo Simulation Module for NEXUS-7 Research V32
+Monte Carlo Simulation Module for NEXUS-7 Research V33
 Executes 2,000-iteration trade-sequence shuffle simulations.
 Derives return and drawdown distributions, losing streak probabilities, and risk of ruin.
 """
@@ -28,9 +28,10 @@ def run_monte_carlo_resampling(
             "median_max_dd": 0.0,
             "dd_95th_percentile": 0.0,
             "prob_dd_over_10": 0.0,
-            "prob_dd_over_15": 0.0,
             "prob_dd_over_20": 0.0,
+            "prob_dd_over_30": 0.0,
             "risk_of_ruin_50pct": 0.0,
+            "prob_ending_negative": 0.0,
             "losing_streak_95th": 0
         }
 
@@ -50,15 +51,11 @@ def run_monte_carlo_resampling(
         tot_ret = (equity_curve[-1] - initial_balance) / initial_balance * 100.0
         final_returns.append(tot_ret)
 
-        peak = equity_curve[0]
-        max_dd = 0.0
-        for eq in equity_curve:
-            if eq > peak:
-                peak = eq
-            dd = (peak - eq) / peak if peak > 0 else 0.0
-            if dd > max_dd:
-                max_dd = dd
+        peaks = np.maximum.accumulate(equity_curve)
+        dds = np.where(peaks > 0, (peaks - equity_curve) / peaks, 0.0)
+        max_dd = float(np.max(dds))
         max_dds.append(max_dd * 100.0)
+
 
         # Measure longest losing streak
         max_streak = 0
@@ -83,8 +80,9 @@ def run_monte_carlo_resampling(
         "median_max_dd": round(float(np.median(max_dds_arr)), 2),
         "dd_95th_percentile": round(float(np.percentile(max_dds_arr, 95)), 2),
         "prob_dd_over_10": round(float(np.mean(max_dds_arr > 10.0) * 100.0), 1),
-        "prob_dd_over_15": round(float(np.mean(max_dds_arr > 15.0) * 100.0), 1),
         "prob_dd_over_20": round(float(np.mean(max_dds_arr > 20.0) * 100.0), 1),
+        "prob_dd_over_30": round(float(np.mean(max_dds_arr > 30.0) * 100.0), 1),
         "risk_of_ruin_50pct": round(float(np.mean(max_dds_arr > 50.0) * 100.0), 1),
+        "prob_ending_negative": round(float(np.mean(returns_arr < 0.0) * 100.0), 1),
         "losing_streak_95th": int(np.percentile(losing_streaks, 95))
     }
