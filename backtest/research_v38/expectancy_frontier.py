@@ -1,7 +1,7 @@
 """
-Expectancy & Frequency Frontier Analysis Module for NEXUS-7 Research V37
+Expectancy & Frequency Frontier Analysis Module for NEXUS-7 Research V38
 Analyzes performance across frequency frontier bands (0.25 to 3.00+ trades/day)
-and measures daily participation metrics (% days traded, mean/median/p90 trades/day, longest zero-trade streak).
+and measures daily participation metrics (% days traded, mean/median/25th/75th percentile trades/day, longest zero-trade streak).
 """
 
 from typing import Dict, List, Any
@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 
 
-def compute_daily_participation_metrics(
+def compute_daily_participation_metrics_v38(
     trades: List[Dict[str, Any]],
     dataset_start_date: pd.Timestamp,
     dataset_end_date: pd.Timestamp
@@ -18,14 +18,15 @@ def compute_daily_participation_metrics(
     Computes daily participation metrics:
     - signals/day, qualified opps/day, executed trades/day
     - % days with >=1, >=2, >=3 opportunities
-    - mean/median/p90 trades/day
+    - mean/median/25th/75th percentile trades/day
     - longest zero-trade streak
     """
     if not dataset_start_date or not dataset_end_date:
         return {
             "avg_trades_per_day": 0.0,
             "median_trades_per_day": 0.0,
-            "p90_trades_per_day": 0.0,
+            "p25_trades_per_day": 0.0,
+            "p75_trades_per_day": 0.0,
             "days_traded_pct": 0.0,
             "days_no_trade_pct": 100.0,
             "longest_no_trade_streak_days": 0,
@@ -39,7 +40,8 @@ def compute_daily_participation_metrics(
         return {
             "avg_trades_per_day": 0.0,
             "median_trades_per_day": 0.0,
-            "p90_trades_per_day": 0.0,
+            "p25_trades_per_day": 0.0,
+            "p75_trades_per_day": 0.0,
             "days_traded_pct": 0.0,
             "days_no_trade_pct": 100.0,
             "longest_no_trade_streak_days": total_days,
@@ -51,7 +53,8 @@ def compute_daily_participation_metrics(
 
     avg_tpd = float(counts_by_day.mean())
     median_tpd = float(counts_by_day.median())
-    p90_tpd = float(counts_by_day.quantile(0.90))
+    p25_tpd = float(counts_by_day.quantile(0.25))
+    p75_tpd = float(counts_by_day.quantile(0.75))
 
     days_with_trades = int((counts_by_day > 0).sum())
     days_traded_pct = (days_with_trades / total_days) * 100.0
@@ -81,7 +84,8 @@ def compute_daily_participation_metrics(
     return {
         "avg_trades_per_day": round(avg_tpd, 2),
         "median_trades_per_day": round(median_tpd, 2),
-        "p90_trades_per_day": round(p90_tpd, 2),
+        "p25_trades_per_day": round(p25_tpd, 2),
+        "p75_trades_per_day": round(p75_tpd, 2),
         "days_traded_pct": round(days_traded_pct, 1),
         "days_no_trade_pct": round(days_no_trade_pct, 1),
         "longest_no_trade_streak_days": max_zero_streak,
@@ -89,7 +93,7 @@ def compute_daily_participation_metrics(
     }
 
 
-def compute_frequency_frontier_bands(
+def compute_frequency_frontier_bands_v38(
     all_candidate_results: List[Dict[str, Any]]
 ) -> List[Dict[str, Any]]:
     """
@@ -121,7 +125,7 @@ def compute_frequency_frontier_bands(
                 "bootstrap_ci": str(best_candidate.get("bootstrap_ci", [0, 0])),
                 "max_drawdown_pct": best_candidate["max_drawdown_pct"],
                 "walk_forward_positive": best_candidate.get("wf_positive_windows", 0),
-                "verdict": best_candidate.get("verdict", "NO_EDGE")
+                "verdict": best_candidate.get("verdict", "NO_ROBUST_EDGE_FOUND")
             })
         else:
             summary.append({
@@ -133,7 +137,7 @@ def compute_frequency_frontier_bands(
                 "bootstrap_ci": "[0.0, 0.0]",
                 "max_drawdown_pct": 0.0,
                 "walk_forward_positive": 0,
-                "verdict": "V37_NO_ROBUST_PROFITABLE_EDGE"
+                "verdict": "NO_ROBUST_EDGE_FOUND"
             })
 
     return summary

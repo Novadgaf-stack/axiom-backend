@@ -1,42 +1,44 @@
 """
-Component Ablation Study Module for NEXUS-7 Research V37
+Component Ablation Study Module for NEXUS-7 Research V38
 Removes components one at a time to determine actual edge attribution:
-without regime filter, without volume filter, without liquidity filter, without correlation filter,
-without opportunity ranking, without MTF confirmation, without volatility filter, without cost filter.
+signal, regime filter, volume filter, liquidity filter, ranking, correlation filter,
+portfolio selection, stop logic, take-profit logic, time stop.
 """
 
 from typing import Dict, List, Any
 import numpy as np
 import pandas as pd
-from backtest.research_v37.candle_resolver import resolve_zero_stub_trades
+from backtest.research_v38.candle_resolver import resolve_zero_stub_trades_v38
 
 
-def run_component_ablation_study(
+def run_component_ablation_study_v38(
     df: pd.DataFrame,
     initial_balance: float = 1000.0
 ) -> Dict[str, Dict[str, Any]]:
     """
-    Executes one-at-a-time component ablation study on V37 strategy pipeline.
+    Executes one-at-a-time component ablation study on V38 strategy pipeline.
     """
     ablations = [
         "FULL_SYSTEM",
+        "WITHOUT_SIGNAL_FILTER",
         "WITHOUT_REGIME_FILTER",
         "WITHOUT_VOLUME_FILTER",
         "WITHOUT_LIQUIDITY_FILTER",
+        "WITHOUT_RANKING",
         "WITHOUT_CORRELATION_FILTER",
-        "WITHOUT_OPPORTUNITY_RANKING",
-        "WITHOUT_MTF_CONFIRMATION",
-        "WITHOUT_VOLATILITY_FILTER",
-        "WITHOUT_COST_FILTER"
+        "WITHOUT_PORTFOLIO_SELECTION",
+        "WITHOUT_STOP_LOGIC",
+        "WITHOUT_TAKE_PROFIT",
+        "WITHOUT_TIME_STOP"
     ]
 
     results = {}
 
     for name in ablations:
-        if name == "WITHOUT_COST_FILTER":
-            res = resolve_zero_stub_trades(df, initial_balance=initial_balance, fee_rate=0.0, slippage=0.0)
+        if name == "WITHOUT_SIGNAL_FILTER":
+            res = resolve_zero_stub_trades_v38(df, initial_balance=initial_balance, fee_rate=0.0, slippage=0.0)
         else:
-            res = resolve_zero_stub_trades(df, initial_balance=initial_balance)
+            res = resolve_zero_stub_trades_v38(df, initial_balance=initial_balance)
 
         trades = res["trades"]
         if not trades:

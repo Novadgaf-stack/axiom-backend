@@ -1,15 +1,14 @@
 """
-Signal Engine Module for NEXUS-7 Research V37
-Calculates objective historical signal features and conditional expectancy with zero lookahead at timestamp T.
+Signal Engine Module for NEXUS-7 Research V38
+Calculates objective continuous signal quality scores and features with zero lookahead at timestamp T.
 """
 
 from typing import Dict, List, Any
 import numpy as np
 import pandas as pd
-from backtest.research_v37.regime_detector import compute_atr, compute_ema, classify_market_regime
 
 
-def extract_signal_features(
+def extract_signal_features_v38(
     df: pd.DataFrame,
     idx: int,
     signal_dir: int,
@@ -29,7 +28,7 @@ def extract_signal_features(
             "distance_to_structure": 0.5,
             "rr_ratio": 2.0,
             "mtf_agreement": 0.5,
-            "regime": "RANGING"
+            "regime": "SIDEWAYS"
         }
 
     close = df["close"].iloc[:idx+1]
@@ -53,7 +52,7 @@ def extract_signal_features(
     target_dist = abs(target_price - entry_price)
     rr_ratio = target_dist / (stop_dist + 1e-8)
 
-    regime = "TRENDING_UP" if close_val > ema20_val > ema50_val else ("TRENDING_DOWN" if close_val < ema20_val < ema50_val else "RANGING")
+    regime = "BULL" if close_val > ema20_val > ema50_val else ("BEAR" if close_val < ema20_val < ema50_val else "SIDEWAYS")
     vol_regime = "HIGH_VOLATILITY" if vol_expansion > 1.5 else ("LOW_VOLATILITY" if vol_expansion < 0.7 else "NORMAL_VOLATILITY")
 
     return {

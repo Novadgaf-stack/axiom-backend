@@ -1,20 +1,20 @@
 """
-Monte Carlo Simulation Module for NEXUS-7 Research V37
-Executes 5,000-iteration 2D matrix vectorized trade-sequence shuffle simulations.
+Monte Carlo Simulation Module for NEXUS-7 Research V38
+Executes 10,000-iteration 2D matrix vectorized trade-sequence shuffles, block bootstrap, and regime-preserving shuffles.
 """
 
 from typing import Dict, List, Any
 import numpy as np
 
 
-def run_monte_carlo_simulations(
+def run_monte_carlo_simulations_v38(
     pnls: List[float],
     initial_balance: float = 1000.0,
-    iterations: int = 5000,
+    iterations: int = 10000,
     seed: int = 42
 ) -> Dict[str, Any]:
     """
-    Runs 5,000 vectorized Monte Carlo trade-sequence shuffles.
+    Runs 10,000 vectorized Monte Carlo trade-sequence shuffles.
     """
     if not pnls or len(pnls) < 5:
         return {

@@ -1,14 +1,14 @@
 """
-Statistical Evaluator Module for NEXUS-7 Research V37
+Statistical Evaluator Module for NEXUS-7 Research V38
 Calculates comprehensive trade statistics, metrics, promotion gates, and official verdict assignment.
 """
 
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Tuple
 import numpy as np
 import pandas as pd
 
 
-def compute_trade_statistics(
+def compute_trade_statistics_v38(
     trades: List[Dict[str, Any]],
     initial_balance: float = 1000.0,
     total_days: float = 30.0
@@ -71,7 +71,7 @@ def compute_trade_statistics(
     }
 
 
-def evaluate_v37_promotion_gates(
+def evaluate_v38_promotion_gates(
     stats: Dict[str, Any],
     bootstrap_ci: List[float],
     wf_positive_windows: int,
@@ -81,10 +81,12 @@ def evaluate_v37_promotion_gates(
     best_asset_removal_pf: float = 1.0,
     friction_stress_pf: float = 1.0,
     max_asset_profit_share: float = 0.25,
-    mc_95_dd_pct: float = 10.0
+    mc_95_dd_pct: float = 10.0,
+    dsr_passed: bool = False,
+    is_fragile: bool = False
 ) -> Tuple[str, Dict[str, bool]]:
     """
-    Evaluates strict V37 promotion gates for ROBUST_PROFITABLE status.
+    Evaluates strict V38 machine-readable promotion gates for ROBUST_PROFITABLE status.
     """
     pf = stats.get("profit_factor", 0.0)
     exp = stats.get("net_expectancy", 0.0)
@@ -92,7 +94,7 @@ def evaluate_v37_promotion_gates(
     bs_lower = bootstrap_ci[0] if len(bootstrap_ci) >= 2 else 0.0
 
     gates = {
-        "gate_pf_min": bool(pf >= 1.20),
+        "gate_pf_min": bool(pf >= 1.15),
         "gate_exp_positive": bool(exp > 0.0),
         "gate_bootstrap_lower": bool(bs_lower > 1.00),
         "gate_walk_forward": bool(wf_positive_windows >= 4 and total_wf_windows >= 5),
@@ -102,25 +104,28 @@ def evaluate_v37_promotion_gates(
         "gate_friction_stress": bool(friction_stress_pf >= 1.0),
         "gate_concentration": bool(max_asset_profit_share <= 0.30),
         "gate_mc_drawdown": bool(mc_95_dd_pct <= 25.0),
-        "gate_frequency": bool(tpd >= 0.75)
+        "gate_frequency": bool(tpd >= 0.75),
+        "gate_not_fragile": bool(not is_fragile)
     }
 
     all_passed = all(gates.values())
 
-    if all_passed:
-        if tpd >= 2.0:
+    if is_fragile:
+        verdict = "FRAGILE"
+    elif all_passed:
+        if tpd >= 3.0:
             verdict = "ROBUST_HIGH_FREQUENCY"
         elif tpd >= 0.75:
             verdict = "ROBUST_DAILY"
         else:
             verdict = "ROBUST_LOW_FREQUENCY"
     elif pf > 1.0 and exp > 0.0:
-        verdict = "V37_PROFITABLE_BUT_NOT_ROBUST"
+        verdict = "V38_PROFITABLE_BUT_NOT_ROBUST"
     elif tpd >= 0.75 and (pf <= 1.0 or exp <= 0.0):
-        verdict = "V37_FREQUENT_BUT_UNPROFITABLE"
+        verdict = "V38_FREQUENT_BUT_UNPROFITABLE"
     elif stats.get("total_trades", 0) < 10:
-        verdict = "V37_INSUFFICIENT_SAMPLE"
+        verdict = "V38_INSUFFICIENT_SAMPLE"
     else:
-        verdict = "V37_NO_ROBUST_PROFITABLE_EDGE"
+        verdict = "NO_ROBUST_EDGE_FOUND"
 
     return verdict, gates

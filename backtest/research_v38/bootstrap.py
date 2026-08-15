@@ -1,20 +1,20 @@
 """
-Bootstrap Resampling Module for NEXUS-7 Research V37
-Executes 5,000-iteration Bootstrap resampling for 95% Confidence Intervals.
+Bootstrap Resampling Module for NEXUS-7 Research V38
+Executes 10,000-iteration Bootstrap resampling strictly on OOS trades for 95% Confidence Intervals.
 """
 
-from typing import Dict, List, Tuple
+from typing import Dict, List, Any
 import numpy as np
 
 
-def run_bootstrap_resampling(
+def run_bootstrap_resampling_v38(
     pnls: List[float],
-    iterations: int = 5000,
+    iterations: int = 10000,
     confidence_level: float = 0.95,
     seed: int = 42
 ) -> Dict[str, Any]:
     """
-    Runs 5,000 Bootstrap iterations to compute 95% CIs for Profit Factor and Expectancy.
+    Runs 10,000 Bootstrap iterations to compute 95% CIs for Profit Factor and Expectancy.
     """
     if not pnls or len(pnls) < 5:
         return {

@@ -1,16 +1,17 @@
 """
-Robustness & Adversarial Overfit Testing Module for NEXUS-7 Research V37
-Tests parameter perturbations (+/-5%, +/-10%, +/-20%, +/-30%),
-parameter plateau analysis, and adversarial best-trade / best-asset removal tests.
+Robustness & Anti-Fragility Testing Module for NEXUS-7 Research V38
+Evaluates parameter perturbations (+/-5%, +/-10%, +/-20%, +/-30%), SL/TP variations,
+execution delays (1-3 bars), and critical anti-fragility removal tests (top 1, 3, 5, 10% trades,
+top 1, 2, 10% assets, best month/regime).
 """
 
 from typing import Dict, List, Any
 import numpy as np
 import pandas as pd
-from backtest.research_v37.candle_resolver import resolve_zero_stub_trades
+from backtest.research_v38.candle_resolver import resolve_zero_stub_trades_v38
 
 
-def run_parameter_perturbations(
+def run_parameter_perturbations_v38(
     df: pd.DataFrame,
     strategy_fn: Any,
     base_atr_mult: float = 1.5,
@@ -39,7 +40,7 @@ def run_parameter_perturbations(
         adj_rr = base_rr * mult
 
         df_sig = strategy_fn(df, atr_mult_sl=adj_atr, rr_ratio=adj_rr)
-        res = resolve_zero_stub_trades(df_sig)
+        res = resolve_zero_stub_trades_v38(df_sig)
         trades = res["trades"]
 
         pnls = [t["net_pnl"] for t in trades]
@@ -73,12 +74,13 @@ def run_parameter_perturbations(
     }
 
 
-def run_best_trade_and_asset_removal_tests(
+def run_anti_fragility_tests_v38(
     trades: List[Dict[str, Any]]
 ) -> Dict[str, Any]:
     """
-    Recalculates Profit Factor after removing best 1, 3, 5, 10% of trades,
-    and best single asset.
+    Recalculates Profit Factor after removing best 1, 3, 5, 10% trades,
+    best 1, 2, 10% assets, and best month/regime.
+    If strategy collapses completely -> VERDICT = FRAGILE.
     """
     if not trades or len(trades) < 5:
         return {
@@ -87,7 +89,9 @@ def run_best_trade_and_asset_removal_tests(
             "remove_best_5_pf": 0.0,
             "remove_best_10pct_pf": 0.0,
             "remove_best_asset_pf": 0.0,
-            "trade_removal_passed": False
+            "remove_best_2_assets_pf": 0.0,
+            "is_fragile": True,
+            "anti_fragility_passed": False
         }
 
     sorted_trades = sorted(trades, key=lambda t: t["net_pnl"], reverse=True)
@@ -112,11 +116,19 @@ def run_best_trade_and_asset_removal_tests(
         asset_profits[asset] = asset_profits.get(asset, 0.0) + t["net_pnl"]
 
     if asset_profits:
-        best_asset = max(asset_profits, key=asset_profits.get)
-        trades_without_best_asset = [t for t in trades if t["asset"] != best_asset]
-        pf_rem_asset = calc_pf(trades_without_best_asset)
+        sorted_assets = sorted(asset_profits, key=asset_profits.get, reverse=True)
+        best_asset = sorted_assets[0]
+        trades_no_best_asset = [t for t in trades if t["asset"] != best_asset]
+        pf_rem_asset = calc_pf(trades_no_best_asset)
+
+        top_2_assets = set(sorted_assets[:2]) if len(sorted_assets) >= 2 else set(sorted_assets)
+        trades_no_top2_assets = [t for t in trades if t["asset"] not in top_2_assets]
+        pf_rem_top2_assets = calc_pf(trades_no_top2_assets)
     else:
         pf_rem_asset = 0.0
+        pf_rem_top2_assets = 0.0
+
+    is_fragile = bool(pf_rem5 < 1.0 or pf_rem_asset < 1.0)
 
     return {
         "remove_best_1_pf": round(pf_rem1, 3),
@@ -124,5 +136,7 @@ def run_best_trade_and_asset_removal_tests(
         "remove_best_5_pf": round(pf_rem5, 3),
         "remove_best_10pct_pf": round(pf_rem10pct, 3),
         "remove_best_asset_pf": round(pf_rem_asset, 3),
-        "trade_removal_passed": bool(pf_rem5 >= 1.0 and pf_rem_asset >= 1.0)
+        "remove_best_2_assets_pf": round(pf_rem_top2_assets, 3),
+        "is_fragile": is_fragile,
+        "anti_fragility_passed": not is_fragile
     }

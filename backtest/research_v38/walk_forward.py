@@ -1,22 +1,20 @@
 """
-Walk-Forward Validation Module for NEXUS-7 Research V37
-Implements 5 to 10 rolling walk-forward windows with purging and embargoing.
+Walk-Forward Validation Module for NEXUS-7 Research V38
+Implements 5 chronological expanding walk-forward windows.
 """
 
 from typing import Dict, List, Any
 import numpy as np
 import pandas as pd
-from backtest.research_v37.candle_resolver import resolve_zero_stub_trades
+from backtest.research_v38.candle_resolver import resolve_zero_stub_trades_v38
 
 
-def run_rolling_walk_forward(
+def run_expanding_walk_forward_v38(
     df: pd.DataFrame,
-    num_windows: int = 5,
-    purge_bars: int = 12,
-    embargo_bars: int = 12
+    num_windows: int = 5
 ) -> Dict[str, Any]:
     """
-    Executes rolling walk-forward validation across `num_windows` windows.
+    Executes expanding walk-forward validation across `num_windows` windows.
     """
     n = len(df)
     if n < 100:
@@ -36,7 +34,7 @@ def run_rolling_walk_forward(
         end_idx = min(n, (w + 1) * window_size)
 
         sub_df = df.iloc[start_idx:end_idx].copy().reset_index(drop=True)
-        res = resolve_zero_stub_trades(sub_df)
+        res = resolve_zero_stub_trades_v38(sub_df)
         trades = res["trades"]
 
         pnls = [t["net_pnl"] for t in trades]

@@ -1,17 +1,16 @@
 """
-Opportunity Selector Module for NEXUS-7 Research V37
-Dynamic opportunity scanner, multi-factor quality scoring, quality bucketing (A+ to REJECT),
-and selectivity percentile filtering (TOP 100%, 75%, 50%, 30%, 20%, 10%, 5%).
+Opportunity Selector Module for NEXUS-7 Research V38
+Dynamic portfolio-level opportunity scanner, continuous quality scoring (A+ to REJECT),
+and training-only selection policies (top 1, top 2, top 3, top 5, score threshold).
 """
 
 from typing import Dict, List, Any, Tuple
 import numpy as np
 import pandas as pd
-from backtest.research_v37.signal_engine import extract_signal_features
-from backtest.research_v37.regime_detector import classify_market_regime
+from backtest.research_v38.signal_engine import extract_signal_features_v38
 
 
-def generate_candidate_opportunities(
+def generate_candidate_opportunities_v38(
     datasets: Dict[str, pd.DataFrame],
     strategy_fn: Any,
     family_name: str = "momentum_cont",
@@ -33,7 +32,7 @@ def generate_candidate_opportunities(
             stop = float(row["stop_loss"])
             target = float(row["take_profit"])
 
-            features = extract_signal_features(df, bar_idx, sig_dir, entry, stop, target)
+            features = extract_signal_features_v38(df, bar_idx, sig_dir, entry, stop, target)
 
             opportunities.append({
                 "timestamp": row["timestamp"],
@@ -60,20 +59,12 @@ def generate_candidate_opportunities(
     return opportunities
 
 
-def compute_opportunity_score(
+def compute_opportunity_score_v38(
     opp: Dict[str, Any],
     feature_weights: Dict[str, float] = None
 ) -> Tuple[float, str]:
     """
-    Computes cross-asset opportunity score and maps to quality tier:
-    Score = conf * w_conf + min(1.0, rr/2.0) * w_rr + trend * w_trend + vol * w_vol + mtf * w_mtf
-    Quality Tiers:
-    - A+: Score >= 0.85
-    - A : 0.75 <= Score < 0.85
-    - B+: 0.65 <= Score < 0.75
-    - B : 0.55 <= Score < 0.65
-    - C : 0.45 <= Score < 0.55
-    - REJECT: Score < 0.45
+    Computes continuous opportunity score and maps to quality tier.
     """
     if feature_weights is None:
         feature_weights = {
@@ -116,21 +107,21 @@ def compute_opportunity_score(
     return score_rounded, tier
 
 
-def filter_and_rank_opportunities(
+def filter_and_rank_opportunities_v38(
     candidate_opportunities: List[Dict[str, Any]],
-    selectivity_mode: str = "TOP_100PCT",
+    selection_policy: str = "TOP_5",
     feature_weights: Dict[str, float] = None
 ) -> List[Dict[str, Any]]:
     """
-    Scores, ranks, and filters candidate opportunities based on selectivity mode:
-    TOP_100PCT, TOP_75PCT, TOP_50PCT, TOP_30PCT, TOP_20PCT, TOP_10PCT, TOP_5PCT.
+    Ranks and selects candidate opportunities based on selection policy:
+    TOP_1, TOP_2, TOP_3, TOP_5, SCORE_THRESHOLD.
     """
     if not candidate_opportunities:
         return []
 
     scored_opps = []
     for opp in candidate_opportunities:
-        score, tier = compute_opportunity_score(opp, feature_weights=feature_weights)
+        score, tier = compute_opportunity_score_v38(opp, feature_weights=feature_weights)
         if tier == "REJECT":
             continue
         opp_copy = opp.copy()
@@ -143,17 +134,13 @@ def filter_and_rank_opportunities(
     if n == 0:
         return []
 
-    if selectivity_mode == "TOP_75PCT":
-        return sorted_opps[:max(1, int(n * 0.75))]
-    elif selectivity_mode == "TOP_50PCT":
-        return sorted_opps[:max(1, int(n * 0.50))]
-    elif selectivity_mode == "TOP_30PCT":
-        return sorted_opps[:max(1, int(n * 0.30))]
-    elif selectivity_mode == "TOP_20PCT":
-        return sorted_opps[:max(1, int(n * 0.20))]
-    elif selectivity_mode == "TOP_10PCT":
-        return sorted_opps[:max(1, int(n * 0.10))]
-    elif selectivity_mode == "TOP_5PCT":
-        return sorted_opps[:max(1, int(n * 0.05))]
-    else: # TOP_100PCT
-        return sorted_opps
+    if selection_policy == "TOP_1":
+        return sorted_opps[:1]
+    elif selection_policy == "TOP_2":
+        return sorted_opps[:2]
+    elif selection_policy == "TOP_3":
+        return sorted_opps[:3]
+    elif selection_policy == "SCORE_THRESHOLD":
+        return [s for s in sorted_opps if s["opportunity_score"] >= 0.70]
+    else: # TOP_5
+        return sorted_opps[:min(5, n)]

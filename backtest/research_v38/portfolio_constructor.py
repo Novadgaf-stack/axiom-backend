@@ -1,5 +1,5 @@
 """
-Correlation & Portfolio Selector Module for NEXUS-7 Research V37
+Portfolio Constructor Module for NEXUS-7 Research V38
 Handles correlation matrix computation, cluster detection (0.60–0.90 thresholds),
 and enforces aggregate open risk caps, correlated risk caps, and concentration limits.
 """
@@ -9,12 +9,28 @@ import numpy as np
 import pandas as pd
 
 
-def detect_correlation_clusters(
+def compute_rolling_correlation_matrix_v38(datasets: Dict[str, pd.DataFrame]) -> pd.DataFrame:
+    """Computes daily return correlation matrix across all assets in datasets using past returns."""
+    close_dict = {}
+    for asset, df in datasets.items():
+        if len(df) > 0:
+            close_dict[asset] = df["close"].values
+
+    if not close_dict:
+        return pd.DataFrame()
+
+    min_len = min(len(v) for v in close_dict.values())
+    price_df = pd.DataFrame({k: v[:min_len] for k, v in close_dict.items()})
+    returns_df = price_df.pct_change().fillna(0.0)
+    return returns_df.corr().abs().fillna(0.0)
+
+
+def detect_correlation_clusters_v38(
     corr_df: pd.DataFrame,
     threshold: float = 0.70
 ) -> Dict[str, List[str]]:
     """
-    Detects correlation clusters using a simple threshold graph components algorithm.
+    Detects correlation clusters using a threshold graph components algorithm.
     """
     if corr_df.empty:
         return {}
@@ -39,7 +55,7 @@ def detect_correlation_clusters(
     return clusters
 
 
-def enforce_portfolio_risk_caps(
+def enforce_portfolio_risk_caps_v38(
     opportunities: List[Dict[str, Any]],
     corr_df: pd.DataFrame,
     max_simultaneous_positions: int = 5,
@@ -54,7 +70,7 @@ def enforce_portfolio_risk_caps(
     if not opportunities:
         return [], {"selected_count": 0, "rejected_count": 0, "total_risk_pct": 0.0}
 
-    clusters = detect_correlation_clusters(corr_df, threshold=cluster_threshold)
+    clusters = detect_correlation_clusters_v38(corr_df, threshold=cluster_threshold)
     asset_to_cluster = {}
     for c_id, members in clusters.items():
         for m in members:
