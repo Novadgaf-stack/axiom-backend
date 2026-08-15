@@ -1,5 +1,5 @@
 """
-Signal Engine Module for NEXUS-7 Research V39
+Signal Engine Module for NEXUS-7 Final Master Research
 Calculates objective continuous signal quality scores and features with zero lookahead at timestamp T.
 """
 
@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 
-def extract_signal_features_v39(
+def extract_signal_features_final(
     df: pd.DataFrame,
     idx: int,
     signal_dir: int,

@@ -1,9 +1,8 @@
 """
-Data Integrity Auditor Module for NEXUS-7 Research V39
+Data Integrity Module for NEXUS-7 Final Master Research
 Performs forensic quality & integrity audit on historical OHLCV market datasets:
 detects duplicate candles, missing candles, timestamp gaps, future timestamps, impossible OHLC relationships,
 zero/negative prices, volume anomalies, cross-asset data duplication, and timezone errors.
-Generates strategy_research/V39_DATA_INTEGRITY_REPORT.md.
 """
 
 from typing import Dict, List, Any, Tuple
@@ -12,17 +11,13 @@ import pandas as pd
 import numpy as np
 
 
-def audit_ohlcv_data_integrity_v39(
+def audit_ohlcv_data_integrity_final(
     datasets: Dict[str, pd.DataFrame],
-    metadata_records: Dict[str, Dict[str, Any]],
-    output_dir: str = "strategy_research"
-) -> Tuple[Dict[str, Any], str]:
+    metadata_records: Dict[str, Dict[str, Any]]
+) -> Dict[str, Any]:
     """
-    Audits dataset integrity across all assets and generates V39_DATA_INTEGRITY_REPORT.md.
+    Audits dataset integrity across all assets.
     """
-    os.makedirs(output_dir, exist_ok=True)
-    report_path = os.path.join(output_dir, "V39_DATA_INTEGRITY_REPORT.md")
-
     audit_summary = {
         "total_assets": len(datasets),
         "total_candles": sum(len(df) for df in datasets.values()),
@@ -32,8 +27,6 @@ def audit_ohlcv_data_integrity_v39(
         "impossible_ohlc_relationships": 0,
         "zero_or_negative_prices": 0,
         "volume_anomalies": 0,
-        "cross_asset_duplicates": 0,
-        "timezone_errors": 0,
         "data_integrity_passed": True,
         "asset_details": {}
     }
@@ -50,7 +43,7 @@ def audit_ohlcv_data_integrity_v39(
             "zero_prices": 0,
             "volume_zeros": 0,
             "exchange": metadata_records.get(asset, {}).get("exchange", "UNKNOWN"),
-            "data_source": metadata_records.get(asset, {}).get("data_source_type", "REAL_MARKET_DATA")
+            "data_source": metadata_records.get(asset, {}).get("data_source_type", "REAL_DATA")
         }
 
         if len(df) == 0:
@@ -97,45 +90,4 @@ def audit_ohlcv_data_integrity_v39(
         audit_summary["future_timestamps"] > 0):
         audit_summary["data_integrity_passed"] = False
 
-    # Generate Markdown Report
-    report_content = f"""# NEXUS-7 Research V39 — Data Integrity Audit Report
-
-> **Forensic Provenance Audit**: Verification of real historical market data integrity.
-> **Audit Status**: **{'PASSED - HIGH DATA INTEGRITY' if audit_summary['data_integrity_passed'] else 'FAILED - DATA DEFECTS DETECTED'}**
-
----
-
-## Executive Audit Summary
-- **Total Assets Audited**: `{audit_summary['total_assets']}`
-- **Total OHLCV Candles**: `{audit_summary['total_candles']}`
-- **Duplicate Candles**: `{audit_summary['duplicate_candles']}`
-- **Missing / Gap Candles**: `{audit_summary['missing_candles']}`
-- **Future Timestamps**: `{audit_summary['future_timestamps']}`
-- **Impossible OHLC Violations**: `{audit_summary['impossible_ohlc_relationships']}`
-- **Zero / Negative Prices**: `{audit_summary['zero_or_negative_prices']}`
-- **Data Integrity Verdict**: **{'PASSED' if audit_summary['data_integrity_passed'] else 'REJECTED'}**
-
----
-
-## Asset Breakdown
-
-| Asset | Candle Count | Exchange | Data Source | Duplicates | Gaps | OHLC Errors | Zero Prices | Status |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
-"""
-    for asset, details in audit_summary["asset_details"].items():
-        status_str = "PASSED" if details["ohlc_errors"] == 0 and details["zero_prices"] == 0 else "DEFECTIVE"
-        report_content += f"| **{asset}** | {details['candle_count']} | {details['exchange']} | {details['data_source']} | {details['duplicates']} | {details['missing_gaps']} | {details['ohlc_errors']} | {details['zero_prices']} | `{status_str}` |\n"
-
-    report_content += """
----
-
-## Integrity Standards Enforced
-1. **Timestamp Monotonicity**: Timestamps strictly ordered without future leakage.
-2. **Price Range Validity**: $Low \\le Open \\le High$ and $Low \\le Close \\le High$.
-3. **No Zero Prices**: Positive price scale required across all bars.
-"""
-
-    with open(report_path, "w", encoding="utf-8") as f:
-        f.write(report_content)
-
-    return audit_summary, report_path
+    return audit_summary

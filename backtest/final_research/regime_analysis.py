@@ -1,8 +1,7 @@
 """
-Regime Analysis & Cross-Regime Replication Module for NEXUS-7 Research V39
+Regime Analysis & Cross-Regime Replication Module for NEXUS-7 Final Master Research
 Classifies 9 distinct market regimes and evaluates strategy performance independently per regime:
 Bull, Bear, Sideways, High Volatility, Low Volatility, BTC-led, Altcoin-led, High Correlation, Low Correlation.
-Determines cross-regime replication metrics.
 """
 
 from typing import Dict, List, Any
@@ -10,7 +9,7 @@ import numpy as np
 import pandas as pd
 
 
-def compute_atr_v39(df: pd.DataFrame, period: int = 14) -> pd.Series:
+def compute_atr_final(df: pd.DataFrame, period: int = 14) -> pd.Series:
     """Computes Average True Range (ATR)."""
     high = df["high"]
     low = df["low"]
@@ -20,12 +19,12 @@ def compute_atr_v39(df: pd.DataFrame, period: int = 14) -> pd.Series:
     return tr.rolling(period).mean().fillna(tr)
 
 
-def compute_ema_v39(series: pd.Series, period: int) -> pd.Series:
+def compute_ema_final(series: pd.Series, period: int) -> pd.Series:
     """Computes Exponential Moving Average (EMA)."""
     return series.ewm(span=period, adjust=False).mean()
 
 
-def classify_market_regime_v39(df: pd.DataFrame, idx: int) -> Dict[str, Any]:
+def classify_market_regime_final(df: pd.DataFrame, idx: int) -> Dict[str, Any]:
     """Classifies market regime at bar `idx` using past bar information."""
     if idx < 50:
         return {
@@ -38,12 +37,12 @@ def classify_market_regime_v39(df: pd.DataFrame, idx: int) -> Dict[str, Any]:
 
     close = df["close"].iloc[:idx+1]
     volume = df["volume"].iloc[:idx+1]
-    ema20 = compute_ema_v39(close, 20).iloc[-1]
-    ema50 = compute_ema_v39(close, 50).iloc[-1]
+    ema20 = compute_ema_final(close, 20).iloc[-1]
+    ema50 = compute_ema_final(close, 50).iloc[-1]
     c_val = close.iloc[-1]
 
-    atr = compute_atr_v39(df.iloc[:idx+1], 14).iloc[-1]
-    atr_sma = compute_atr_v39(df.iloc[:idx+1], 14).rolling(20).mean().iloc[-1] if idx >= 20 else atr
+    atr = compute_atr_final(df.iloc[:idx+1], 14).iloc[-1]
+    atr_sma = compute_atr_final(df.iloc[:idx+1], 14).rolling(20).mean().iloc[-1] if idx >= 20 else atr
     vol_ratio = atr / (atr_sma + 1e-8)
 
     if c_val > ema20 > ema50:
@@ -72,7 +71,7 @@ def classify_market_regime_v39(df: pd.DataFrame, idx: int) -> Dict[str, Any]:
     }
 
 
-def evaluate_regime_performance_v39(
+def evaluate_regime_performance_final(
     trades: List[Dict[str, Any]]
 ) -> Dict[str, Dict[str, Any]]:
     """Evaluates trade performance breakdown and cross-regime replication."""

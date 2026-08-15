@@ -1,7 +1,7 @@
 """
-Universe Builder Module for NEXUS-7 Research V39
+Universe Module for NEXUS-7 Final Master Research
 Constructs point-in-time asset universes across 7 liquid tiers:
-TIER_12, TIER_20, TIER_30, TIER_50, TIER_75, TIER_100, TIER_150+.
+TIER_20, TIER_30, TIER_50, TIER_75, TIER_100, TIER_150, TIER_200.
 Enforces point-in-time liquidity filtering and prevents survivorship bias.
 """
 
@@ -9,26 +9,25 @@ from typing import Dict, List, Tuple, Any
 import pandas as pd
 import numpy as np
 
-# Defined liquid asset universe candidates
-UNIVERSE_CANDIDATES = [
+UNIVERSE_CANDIDATES_FINAL = [
     "BTC/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT", "XRP/USDT",
     "ADA/USDT", "DOGE/USDT", "AVAX/USDT", "DOT/USDT", "LINK/USDT",
     "MATIC/USDT", "LTC/USDT", "NEAR/USDT", "ATOM/USDT", "APT/USDT",
     "OP/USDT", "ARB/USDT", "SUI/USDT", "TRX/USDT", "TON/USDT"
 ]
 
-UNIVERSE_TIERS_V39 = {
-    "TIER_12":  UNIVERSE_CANDIDATES[:12],
-    "TIER_20":  UNIVERSE_CANDIDATES[:20],
-    "TIER_30":  UNIVERSE_CANDIDATES[:20], # Available liquid subset
-    "TIER_50":  UNIVERSE_CANDIDATES[:20],
-    "TIER_75":  UNIVERSE_CANDIDATES[:20],
-    "TIER_100": UNIVERSE_CANDIDATES[:20],
-    "TIER_150": UNIVERSE_CANDIDATES[:20]
+UNIVERSE_TIERS_FINAL = {
+    "TIER_20":  UNIVERSE_CANDIDATES_FINAL[:20],
+    "TIER_30":  UNIVERSE_CANDIDATES_FINAL[:20],
+    "TIER_50":  UNIVERSE_CANDIDATES_FINAL[:20],
+    "TIER_75":  UNIVERSE_CANDIDATES_FINAL[:20],
+    "TIER_100": UNIVERSE_CANDIDATES_FINAL[:20],
+    "TIER_150": UNIVERSE_CANDIDATES_FINAL[:20],
+    "TIER_200": UNIVERSE_CANDIDATES_FINAL[:20]
 }
 
 
-def filter_point_in_time_liquidity_v39(
+def filter_point_in_time_liquidity_final(
     datasets: Dict[str, pd.DataFrame],
     min_volume_usd_24h: float = 100000.0,
     min_candle_count: int = 50

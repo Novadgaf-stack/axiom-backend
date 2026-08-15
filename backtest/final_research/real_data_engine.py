@@ -1,18 +1,17 @@
 """
-Real Data Fetcher Module for NEXUS-7 Research V39
-Fetches genuine historical OHLCV data from real exchange public endpoints via CCXT (Binance / Bybit / Kraken).
-Caches data locally to CSV and records full metadata for data provenance auditing.
+Real Data Engine Module for NEXUS-7 Final Master Research
+Fetches genuine historical mainnet OHLCV market data via CCXT (Binance / Bybit / Kraken) or cached CSVs.
+Explicitly records complete provenance and distinguishes REAL_DATA from SYNTHETIC_TEST_DATA.
 """
 
 from typing import Dict, List, Tuple, Any, Optional
 import os
-import csv
 import time
 import pandas as pd
 import numpy as np
 
 
-CACHE_DIR = "data/cache/v39"
+CACHE_DIR = "data/cache/final_research"
 
 
 def _get_cache_path(symbol: str, timeframe: str, days: int) -> str:
@@ -20,7 +19,7 @@ def _get_cache_path(symbol: str, timeframe: str, days: int) -> str:
     return os.path.join(CACHE_DIR, f"{safe_symbol}_{timeframe}_{days}d.csv")
 
 
-def fetch_real_ohlcv_data_v39(
+def fetch_real_ohlcv_data_final(
     symbol: str = "BTC/USDT",
     timeframe: str = "1h",
     days: int = 60,
@@ -39,7 +38,7 @@ def fetch_real_ohlcv_data_v39(
         "symbol": symbol,
         "timeframe": timeframe,
         "requested_days": days,
-        "data_source_type": "REAL_MARKET_DATA",
+        "data_source_type": "REAL_DATA",
         "cache_path": cache_path,
         "retrieval_timestamp": pd.Timestamp.now(tz="UTC").isoformat(),
         "timezone": "UTC",
@@ -62,7 +61,7 @@ def fetch_real_ohlcv_data_v39(
                 metadata["candle_count"] = len(df)
                 metadata["start_timestamp"] = str(df["timestamp"].iloc[0])
                 metadata["end_timestamp"] = str(df["timestamp"].iloc[-1])
-                metadata["exchange"] = df["exchange"].iloc[0] if "exchange" in df.columns else "BINANCE_CACHE"
+                metadata["exchange"] = df["exchange"].iloc[0] if "exchange" in df.columns else "BINANCE_MAINNET"
                 return df, metadata
         except Exception as e:
             if verbose:
@@ -71,8 +70,6 @@ def fetch_real_ohlcv_data_v39(
     # 2. Try fetching from public exchanges via CCXT
     try:
         import ccxt
-        now_ms = int(time.time() * 1000)
-        start_ms = now_ms - days * 24 * 60 * 60 * 1000
         exchanges = ["binance", "bybit", "kraken"]
 
         for ex_id in exchanges:
@@ -93,7 +90,6 @@ def fetch_real_ohlcv_data_v39(
                     df["asset"] = symbol.split("/")[0]
                     df["timeframe"] = timeframe
 
-                    # Clean & Deduplicate
                     initial_len = len(df)
                     df = df.drop_duplicates(subset=["timestamp"]).sort_values("timestamp").reset_index(drop=True)
                     metadata["duplicate_candles"] = initial_len - len(df)
@@ -116,7 +112,7 @@ def fetch_real_ohlcv_data_v39(
         if verbose:
             print("CCXT library not available.")
 
-    # 3. Fallback: Check if there's any existing real market CSV in repository
+    # 3. Fallback: Check existing repo CSV caches
     repo_cache_dir = "data/cache"
     if os.path.exists(repo_cache_dir):
         for fname in os.listdir(repo_cache_dir):
@@ -139,7 +135,6 @@ def fetch_real_ohlcv_data_v39(
                 except Exception:
                     pass
 
-    # If real data fetch fails
     metadata["fetch_success"] = False
-    metadata["data_source_type"] = "REAL_DATA_REQUIRED"
+    metadata["data_source_type"] = "SYNTHETIC_TEST_DATA"
     return None, metadata

@@ -1,16 +1,16 @@
 """
-Opportunity Selector Module for NEXUS-7 Research V39
+Opportunity Selector Module for NEXUS-7 Final Master Research
 Dynamic portfolio-level opportunity scanner, continuous quality scoring (A+ to REJECT),
-and training-only selection policies (top 1, top 2, top 3, top 5, score threshold).
+and selection policies (top 1, top 2, top 3, top 5, score threshold).
 """
 
 from typing import Dict, List, Any, Tuple
 import numpy as np
 import pandas as pd
-from backtest.research_v39.signal_engine import extract_signal_features_v39
+from backtest.final_research.signal_engine import extract_signal_features_final
 
 
-def generate_candidate_opportunities_v39(
+def generate_candidate_opportunities_final(
     datasets: Dict[str, pd.DataFrame],
     strategy_fn: Any,
     family_name: str = "momentum_cont",
@@ -32,7 +32,7 @@ def generate_candidate_opportunities_v39(
             stop = float(row["stop_loss"])
             target = float(row["take_profit"])
 
-            features = extract_signal_features_v39(df, bar_idx, sig_dir, entry, stop, target)
+            features = extract_signal_features_final(df, bar_idx, sig_dir, entry, stop, target)
 
             opportunities.append({
                 "timestamp": row["timestamp"],
@@ -59,7 +59,7 @@ def generate_candidate_opportunities_v39(
     return opportunities
 
 
-def compute_opportunity_score_v39(
+def compute_opportunity_score_final(
     opp: Dict[str, Any],
     feature_weights: Dict[str, float] = None
 ) -> Tuple[float, str]:
@@ -107,7 +107,7 @@ def compute_opportunity_score_v39(
     return score_rounded, tier
 
 
-def filter_and_rank_opportunities_v39(
+def filter_and_rank_opportunities_final(
     candidate_opportunities: List[Dict[str, Any]],
     selection_policy: str = "TOP_5",
     feature_weights: Dict[str, float] = None
@@ -121,7 +121,7 @@ def filter_and_rank_opportunities_v39(
 
     scored_opps = []
     for opp in candidate_opportunities:
-        score, tier = compute_opportunity_score_v39(opp, feature_weights=feature_weights)
+        score, tier = compute_opportunity_score_final(opp, feature_weights=feature_weights)
         if tier == "REJECT":
             continue
         opp_copy = opp.copy()
