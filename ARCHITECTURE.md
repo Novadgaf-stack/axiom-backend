@@ -1,49 +1,78 @@
-# ARCHITECTURE.md — Nexus-7 System Architecture & Solana Extension
+# AXIOM System Architecture and Solana Extension
 
-## 1. Core Architecture Overview
+## 1. Core architecture overview
 
-Nexus-7 follows a decoupled, layered architecture:
+AXIOM uses a decoupled, layered architecture. The FastAPI application hosts the persistent async trading engine and exposes API routes for monitoring and control. The Solana Devnet agent layer is an isolated extension that is intended to consume a read-only decision context and cannot control the core Binance Spot Testnet execution path directly.
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
-│                       FastAPI Application                   │
-│                     (app/main.py, app/api.py)               │
+│                     FastAPI Application                     │
+│                   app/main.py · app/api.py                  │
 └──────────────┬──────────────────────────────┬───────────────┘
                │                              │
                ▼                              ▼
 ┌─────────────────────────────┐    ┌──────────────────────────┐
-│      Trading Engine         │    │   Solana Agent Module    │
-│      (app/engine.py)        │    │     (solana_agent/)      │
-│  - 24/7 Async Polling Loop  │    │  - Policy Validation     │
-│  - CCXT Binance Testnet     │    │  - RPC Simulation        │
-│  - OCO Order Reconciliation │    │  - Devnet Signer         │
+│       Trading Engine        │    │   Solana Agent Module    │
+│       app/engine.py         │    │      solana_agent/        │
+│  • Persistent async loop    │    │  • Policy validation     │
+│  • CCXT Binance Testnet     │    │  • RPC simulation        │
+│  • OCO order handling       │    │  • Devnet signing        │
 └──────────────┬──────────────┘    └──────────┬───────────────┘
                │                              │
                ▼                              ▼
 ┌─────────────────────────────┐    ┌──────────────────────────┐
-│    Strategy & Risk Core     │    │   Solana Devnet Venue    │
-│  - app/indicators.py        │    │  - https://api.devnet.   │
-│  - app/ai_analyst.py        │    │    solana.com            │
-│  - app/strategy.py          │    │  - Devnet SPL Tokens     │
-│  - app/risk.py (15% DD cap) │    │  - On-Chain Audit Memo   │
+│      Strategy and Risk      │    │   Solana Devnet Venue    │
+│  • app/indicators.py        │    │  • api.devnet.solana.com │
+│  • app/ai_analyst.py        │    │  • Devnet SPL tokens     │
+│  • app/strategy.py          │    │  • On-chain audit Memo   │
+│  • app/risk.py              │    │                          │
 └─────────────────────────────┘    └──────────────────────────┘
 ```
 
----
+## 2. Component boundaries and isolation
 
-## 2. Component Decoupling Strategy
+### AXIOM core
 
-1. **Nexus-7 Core**: Functions independently. Reads market data, evaluates indicators, queries Gemini, applies risk rules, logs to SQLite.
-2. **Solana Agent Layer**: Receives read-only `Decision` context from Nexus-7. Executes Devnet-specific simulation and policy verification before broadcasting to Solana Devnet.
-3. **Fail-Safe Isolation**: Any error in the Solana RPC or Devnet wallet does not stop or crash the main Nexus-7 trading loop.
+The core engine operates independently: it reads market data, evaluates technical indicators, obtains a Gemini advisory result, applies deterministic strategy and risk rules, and writes its audit trail to SQLite.
 
----
+### Solana Devnet agent layer
 
-## 3. Data & Decision Flow Matrix
+The extension receives a read-only `Decision` context from AXIOM. Before a Devnet transaction can proceed, it applies deterministic policy checks and Solana RPC simulation. Its scope is limited to Solana Devnet activity and audit workflows.
 
-| Component | Ingests | Outputs | Action |
-| :--- | :--- | :--- | :--- |
-| `app/strategy.py` | OHLCV + Order Book + AI | `Decision(action, confidence)` | Produces strategy signal |
-| `solana_agent/policy_gate.py` | `Decision` + Policy Config | `PolicyResult(passed, reason)` | Validates risk boundaries |
-| `solana_agent/rpc_simulator.py` | Unsigned Tx Bytes | `SimulationResult(success, logs)` | Pre-flight RPC simulation |
-| `solana_agent/solana_client.py` | Signed Tx Bytes | `TxSignature` | Broadcasts to Devnet |
+### Failure containment
+
+An error in Solana RPC connectivity, Devnet wallet handling, or the extension itself must be contained so that it does not stop or crash the main AXIOM async trading loop. This is achieved by maintaining the module boundary between `solana_agent/` and the core engine, strategy, and risk files.
+
+## 3. Data and decision flow
+
+| Component | Ingests | Outputs | Responsibility |
+| --- | --- | --- | --- |
+| `app/strategy.py` | OHLCV data, order-book data, and AI advisory output | `Decision(action, confidence)` | Produces the strategy signal |
+| `solana_agent/policy_gate.py` | `Decision` and policy configuration | `PolicyResult(passed, reason)` | Validates deterministic risk boundaries |
+| `solana_agent/rpc_simulator.py` | Unsigned transaction bytes | `SimulationResult(success, logs)` | Performs pre-flight RPC simulation |
+| `solana_agent/solana_client.py` | Transaction ready for signing | Transaction signature or error | Signs locally and broadcasts only to Devnet |
+
+## 4. Execution-control sequence
+
+```text
+Market data + technical analysis + Gemini advisory
+                         │
+                         ▼
+               AXIOM strategy decision
+                         │
+          Read-only decision context
+                         ▼
+        Solana policy gate and rate limits
+                         │
+                         ▼
+          Solana Devnet RPC simulation
+                         │
+                         ▼
+       Local Devnet signing and broadcast
+```
+
+Any rejected policy decision or failed simulation ends the Solana path before signing. The Binance Spot Testnet execution path remains separate.
+
+## 5. Status and evidence boundary
+
+The diagram and flows document the intended AXIOM architecture. The existence, implementation state, and runtime behavior of individual components should be demonstrated with repository code, test output, and Devnet Explorer records. See `PROJECT_SPEC.md`, `IMPLEMENTATION_PLAN.md`, `TESTING_PLAN.md`, and `EVIDENCE.md` for the corresponding scope and evidence records.
