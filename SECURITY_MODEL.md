@@ -1,6 +1,5 @@
 
-1
-100%
+
 # AXIOM Security Model
 
 ## Purpose
