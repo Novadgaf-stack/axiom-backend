@@ -52,6 +52,12 @@ To focus on the Solana agent tests:
 .\.venv\Scripts\python.exe -m pytest tests/test_solana_agent.py
 ```
 
-## Reporting failures
+## Reporting Failures
 
+No failed test run is recorded in this submission.
+
+The documented validation command was:
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest
 
