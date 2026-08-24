@@ -54,10 +54,4 @@ To focus on the Solana agent tests:
 
 ## Reporting failures
 
-For a failed run, record:
-
-- the command used;
-- the failing test name and traceback;
-- the relevant sanitized configuration (never private keys or API tokens); and
-- whether the failure occurred before or after policy enforcement or simulation.
 
