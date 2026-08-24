@@ -1,6 +1,5 @@
 
-1
-100%
+
 # AXIOM Solana Integration Plan
 
 ## 1. SDK and technology selection
