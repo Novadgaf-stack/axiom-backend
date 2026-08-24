@@ -1,32 +1,71 @@
-# MILESTONES.md — 4-Week Superteam Grant Milestone Schedule
+# AXIOM — Superteam Grant Milestone Schedule
 
-## Grant Overview
-- **Total Grant**: $200 USDG
-- **Tranche 1 (50% / $100)**: Upfront architecture, plan, tool receipts, and environment setup.
-- **Tranche 2 (50% / $100)**: Working Devnet MVP, passing automated test suite, Solana Devnet Explorer transaction proof, and receipt verification.
+## Grant overview
 
----
+This schedule organizes the proposed four-week delivery plan for the Superteam Agentic Engineering Grant.
 
-## 4-Week Milestone Breakdown
+| Tranche | Proposed amount | Planned delivery evidence |
+| --- | ---: | --- |
+| Tranche 1 | `$100 USDG` (50%) | Architecture, plan, tool receipts, and environment setup |
+| Tranche 2 | `$100 USDG` (50%) | Devnet MVP, automated-test evidence, Devnet Explorer transaction proof, and receipt verification |
+| **Total** | **`$200 USDG`** | **Two-tranche grant plan** |
 
-### Week 1: Architecture & Specification (Tranche 1 Delivery)
-- Complete repository audit of Nexus-7.
-- Establish architectural boundaries (`solana_agent/` module isolation).
-- Create grant artifacts (`APPLICATION.md`, `PROJECT_SPEC.md`, `SECURITY_MODEL.md`, etc.).
-- Prepare AI tool receipts ($200 eligible coding subscriptions).
+Amounts, acceptance criteria, and timing remain subject to the grant program's terms and approval process.
 
-### Week 2: Solana Agent Core & Policy Gate Build
-- Implement `solana_agent/config.py` (Devnet RPC validation).
-- Implement `solana_agent/schemas.py` (Structured Agent Decision Schema).
-- Implement `solana_agent/policy_gate.py` (Deterministic risk & rate limit pre-gate).
+## Week 1 — Architecture and specification
 
-### Week 3: Transaction Simulation & Devnet Signer Engine
-- Implement `solana_agent/rpc_simulator.py` (Solana RPC `simulateTransaction` integration).
-- Implement `solana_agent/solana_client.py` (Devnet keypair signer & broadcaster).
-- Implement `solana_agent/router.py` (FastAPI `/api/solana/*` endpoints).
+**Planned Tranche 1 delivery**
 
-### Week 4: Test Suite, Verification & Tranche 2 Submission
-- Build `tests/test_solana_agent.py` (policy violations, simulation failures, key isolation).
-- Run full pytest test suite to confirm core Nexus-7 tests pass 100%.
-- Execute Devnet signals and capture Solana Explorer Devnet transaction signatures.
-- Finalize `EVIDENCE.md` and complete Tranche 2 submission package.
+- Audit the AXIOM backend repository and document the scope of the existing engine.
+- Establish the isolation boundary for the `solana_agent/` module.
+- Finalize the grant artifacts, including `APPLICATION.md`, `PROJECT_SPEC.md`, and `SECURITY_MODEL.md`.
+- Prepare eligible AI-tool receipts and environment-setup evidence.
+
+**Completion evidence**
+
+- Architecture diagram and technical specification.
+- Documentation of the separation between `solana_agent/` and the AXIOM engine.
+- Sanitized environment-setup record and applicable tool receipts.
+
+## Week 2 — Solana agent core and policy gate
+
+- Implement `solana_agent/config.py` for Devnet RPC validation.
+- Implement `solana_agent/schemas.py` for the structured agent-decision schema.
+- Implement `solana_agent/policy_gate.py` for deterministic notional and rate-limit checks.
+
+**Completion evidence**
+
+- Source files for configuration, schemas, and policy enforcement.
+- Tests or review artifacts showing Devnet-only configuration and policy rejection behavior.
+
+## Week 3 — Simulation and Devnet signer
+
+- Implement `solana_agent/rpc_simulator.py` for Solana RPC `simulateTransaction` integration.
+- Implement `solana_agent/solana_client.py` for Devnet keypair signing and broadcast.
+- Implement `solana_agent/router.py` for FastAPI `/api/solana/*` routes.
+
+**Completion evidence**
+
+- A successful, sanitized pre-flight simulation record.
+- Source-level proof that signing keys remain environment-managed and isolated from AI prompts.
+- API-route documentation for the Solana extension.
+
+## Week 4 — Tests, verification, and Tranche 2 package
+
+- Build `tests/test_solana_agent.py` for policy violations, simulation failures, key isolation, and core-engine independence.
+- Run the full `pytest` suite and preserve the actual result output.
+- Execute eligible Devnet signals and capture Solana Explorer Devnet transaction signatures, if execution has been completed.
+- Finalize `EVIDENCE.md` and prepare the Tranche 2 submission package.
+
+**Completion evidence**
+
+- Dated, unmodified test output from the full suite.
+- A Devnet Explorer link or transaction signature only when an actual transaction exists.
+- Sanitized evidence package, including tool receipts and implementation artifacts.
+
+## Delivery principles
+
+- Do not represent planned work as completed work.
+- Do not submit transaction signatures, deployment claims, or test-pass claims unless they are backed by verifiable evidence.
+- Keep all secrets, private keys, and API tokens out of screenshots, logs, receipts, and documentation.
+- Preserve the isolated-module boundary so Solana-layer failures do not affect the AXIOM core engine.
